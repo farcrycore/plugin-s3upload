@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<webtop>
+	<section mergeType="merge" id="content">
+		<subsection id="s3upload" sequence="1" label="S3 Upload">
+			<menu id="types" sequence="1" label="Content Types">
+				<menuitem id="s3file" sequence="1" label="s3File" typename="s3File" />
+			</menu>
+		</subsection>
+	</section>
+</webtop>
