@@ -5,6 +5,11 @@
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
 
+<!--- TODO: implement allowed file extensions --->
+<!--- TODO: implement ftSecure flag --->
+
+
+<!--- ftCDNLocation --->
 
 	<cffunction name="init" output="false">
 		<cfreturn this>

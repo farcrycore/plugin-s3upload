@@ -231,6 +231,10 @@ function s3upload($, plupload, options) {
 		// update completed images data
 		updateData();
 
+		if (options.fc.onFileUploaded) {
+			options.fc.onFileUploaded(file);
+		}
+
 	}
 
 	function onPluploadStateChanged(uploader) {

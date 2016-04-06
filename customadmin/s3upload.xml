@@ -4,6 +4,7 @@
 		<subsection id="s3upload" sequence="1" label="S3 Upload">
 			<menu id="types" sequence="1" label="Content Types">
 				<menuitem id="s3file" sequence="1" label="s3File" typename="s3File" />
+				<menuitem id="s3filearray" sequence="2" label="s3File Array" typename="s3FileArray" />
 			</menu>
 		</subsection>
 	</section>
