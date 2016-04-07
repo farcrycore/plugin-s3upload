@@ -287,9 +287,14 @@ function s3upload($, plupload, options) {
 
 	function addItem(file) {
 
+		var item;
 		// get item template
-		var item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
-
+		if (options.fc.getItemTemplate) {
+			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
+		} else {
+			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
+		}
+		
 		if (isImageFile(file) && file.size < 10000000) {
 			// render a preview for a "small" image (less than 10MB)
 			// load image
@@ -344,11 +349,11 @@ function s3upload($, plupload, options) {
 			}
 		}
 
-		if (!options.fc.onFileUploaded) {
+		if (!options.fc.arrayUpload) {
 			$("#" + options.fieldname).val(fieldfiles.join("|"));
 			$("#" + options.fieldname + "_orientation").val(orientation.join("|"));
 		}
-		
+
 		$("#" + options.fieldname + "_filescount").val(done);
 		$("#" + options.fieldname + "_errorcount").val(errors);
 

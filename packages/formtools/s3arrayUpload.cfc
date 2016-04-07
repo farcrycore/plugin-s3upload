@@ -116,6 +116,11 @@
 			</cfoutput>
 		</skin:htmlhead>
 
+		<skin:loadJS id="fc-jquery" />
+		<skin:loadJS id="fc-jquery-ui" />
+		<skin:loadCSS id="jquery-ui" />
+		<skin:loadCSS id="fc-fontawesome" />
+
 		<cfset joinItems = getJoinList(arguments.stObject[arguments.stMetadata.name]) />
 
 		<cfsavecontent variable="html">
@@ -123,59 +128,71 @@
 
 				<!--- UPLOADER UI --->
 				<div class="multiField">
-				<div id="#arguments.fieldname#-container" class="s3upload upload-empty">
-					<div id="upload-placeholder" class="upload-placeholder">
-						<div class="upload-placeholder-message">
-							#placeholderAddLabel#
-						</div>
-					</div>
+					<ul id="join-#stObject.objectid#-#arguments.stMetadata.name#" 
+						class="arrayDetailView" 
+						style="list-style-type:none;border-bottom:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;">
 
-
-					<div id="upload-dropzone" class="upload-dropzone">
-						<cfloop list="#joinItems#" index="item">
-							<cfset stItem = application.fapi.getContentObject(tyapename=arguments.stMetadata.ftJoin,objectid=item)>
-							<cfset stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property='file') />
-							
-<!--- 
-							<ul id="join-#stObject.objectid#-#arguments.stMetadata.name#" 
-								class="arrayDetailView" 
-								style="list-style-type:none;border:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;">
-							 --->
-
-
-							<div class="upload-item upload-item-complete">
-								<div class="upload-item-row">
-									<div class="upload-item-container">
-										<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem.file, "."))>
-											<div class="upload-item-image">
-												<img src="#getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path#">
-											</div>
-										<cfelse>											
-											<div class="upload-item-nonimage" style="display:block;">
-												<i class='fa fa-file-text-o'></i>
-											</div>
-										</cfif>
-										<div class="upload-item-progress-bar"></div>
-									</div>
-									<div class="upload-item-info">
-										<div class="upload-item-file">#listLast(stItem.file, "/")#</div>
-									</div>
-									<div class="upload-item-state"></div>
-									<div class="upload-item-buttons">
-										<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
-									</div>
+						<div id="#arguments.fieldname#-container" class="s3upload upload-empty">
+							<div id="upload-placeholder" class="upload-placeholder">
+								<div class="upload-placeholder-message">
+									#placeholderAddLabel#
 								</div>
-							</div>	
-							<!--- </ul> --->
+							</div>
 
-						</cfloop>
-					</div>
 
-					<div style="border:none; text-align:left;" class="buttonHolder form-actions">
-						<button id="upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
-					</div>
+							<div id="upload-dropzone" class="upload-dropzone" style="padding:0px;">
+								<cfset counter = 0 />
+									<cfloop list="#joinItems#" index="i">
+										<cfset counter = counter + 1 />
+										<cfset stItem = application.fapi.getContentObject(tyapename=arguments.stMetadata.ftJoin,objectid=i)>
+										<cfset stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property='file') />
 
-				</div>
+										<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
+											<table style="width:100%;">
+											<tr>
+											<td class="" style="cursor:move;padding:3px;"><i class="fa fa-sort"></i></td>
+											<td id="item-content" class="" style="cursor:move;width:100%;padding:3px;">
+
+											<div class="upload-item upload-item-complete">
+												<div class="upload-item-row">
+													<div class="upload-item-container">
+														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem.file, "."))>
+															<div class="upload-item-image">
+																<img src="#getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path#">
+															</div>
+														<cfelse>											
+															<div class="upload-item-nonimage" style="display:block;">
+																<i class='fa fa-file-text-o'></i>
+															</div>
+														</cfif>
+														<div class="upload-item-progress-bar"></div>
+													</div>
+													<div class="upload-item-info">
+														<div class="upload-item-file">#listLast(stItem.file, "/")#</div>
+													</div>
+													<div class="upload-item-state"></div>
+													<div class="upload-item-buttons">
+														<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
+													</div>
+												</div>
+											</div>	
+
+											</td>
+											<td class="" style="padding:3px;white-space:nowrap;"></td>
+											</tr>
+											</table>
+
+										</li>		 					
+									</cfloop>
+								
+								</div>
+
+							<div style="border:none; text-align:left;" class="buttonHolder form-actions">
+								<button id="upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
+							</div>
+
+						</div>
+					</ul>
 				</div>
 
 				<input type="hidden" name="#arguments.fieldname#" id="#arguments.fieldname#" value="#joinItems#" />
@@ -227,26 +244,69 @@
 							]
 						},
 						fc: {
+							"arrayUpload": true,
 							"webroot": "#application.url.webroot#/index.cfm?ajaxmode=1",
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
 							"property": "#arguments.stMetadata.name#",
 							"onFileUploaded": function(file) {
+								var objectid = "#application.fapi.getUUID()#";
 								$j.ajax({
 									dataType: "json",
 									type: 'get',
 									cache: false,
 						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
-								 		 + '&objectid=#application.fapi.getUUID()#&filename=' 
-								 		 + file.name + '&view=displayAjaxSaveFile' 
+								 		 + '&objectid=' +objectid
+								 		 + '&filename=' + file.name
+								 		 + '&view=displayAjaxSaveFile' 
 								 		 + '&property=#arguments.stMetadata.name#',
 								 	success: function (result) {
 										var oldValues = $j("###arguments.fieldname#").val();
 										$j("###arguments.fieldname#").val(oldValues + ',' +result.objectid);
+										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",objectid);
+										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+objectid);
 								}
-								});
+								});	
+							},
+							"getItemTemplate": function(id, name, size) {
 
-								
+								id = id || "";
+								name = name || "";
+								size = size || "0";
+
+								var item = $j(
+
+									 '<li id="join-item-#arguments.stMetadata.name#-' + id + '" class="sort" serialize="' + id + '" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">'
+									+ '	<table style="width:100%;">'
+									+ '	<tr>'
+									+ '	<td class="" style="cursor:move;padding:3px;"><i class="fa fa-sort"></i></td>'
+									+ '	<td id="item-content" class="" style="cursor:move;width:100%;padding:3px;">'
+									+ '		<div id="' + id + '" class="upload-item">'
+									+ '			<div class="upload-item-row">'
+									+ '				<div class="upload-item-container">'
+									+ '					<div class="upload-item-image"></div>'
+									+ '					<div class="upload-item-nonimage"></div>'
+									+ '					<div class="upload-item-progress-bar"></div>'
+									+ '				</div>'
+									+ '				<div class="upload-item-info">'
+									+ '					<div class="upload-item-file"><span class="upload-item-filename">' + name + '</span> (' + size +')</div>'
+									+ '				</div>'
+									+ '    <div class="upload-item-state">'
+									+ '      <div class="upload-item-status">Waiting</div>'
+									+ '    </div>'
+									+ '    <div class="upload-item-buttons">'
+									+ '      <button class="upload-button-remove" title="Remove">&times;</button>'
+									+ '    </div>'
+									+ '			</div>'
+									+ '		</div>'
+									+ '	</td>'
+									+ '	<td class="" style="padding:3px;white-space:nowrap;"></td>'
+									+ '	</tr>'
+									+ '	</table>'
+									+ '</li>'
+
+								);
+								return item;
 							}
 
 						}
@@ -256,7 +316,13 @@
 
 
 			</cfoutput>
-
+			<cfoutput>
+				<script type="text/javascript">
+				$j(function() {
+					fcForm.initSortable('#arguments.stobject.typename#','#arguments.stobject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');
+				});
+				</script>
+			</cfoutput>
 		</cfsavecontent>
 
 		<cfif structKeyExists(request, "hideLibraryWrapper") AND request.hideLibraryWrapper>
