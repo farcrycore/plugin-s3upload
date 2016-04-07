@@ -344,8 +344,11 @@ function s3upload($, plupload, options) {
 			}
 		}
 
-		$("#" + options.fieldname).val(fieldfiles.join("|"));
-		$("#" + options.fieldname + "_orientation").val(orientation.join("|"));
+		if (!options.fc.onFileUploaded) {
+			$("#" + options.fieldname).val(fieldfiles.join("|"));
+			$("#" + options.fieldname + "_orientation").val(orientation.join("|"));
+		}
+		
 		$("#" + options.fieldname + "_filescount").val(done);
 		$("#" + options.fieldname + "_errorcount").val(errors);
 

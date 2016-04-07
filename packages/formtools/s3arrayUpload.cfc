@@ -116,179 +116,8 @@
 			</cfoutput>
 		</skin:htmlhead>
 
-
-<!--- 
-		<skin:loadJS id="fc-jquery" />
-		<skin:loadJS id="fc-jquery-ui" />
-		<skin:loadCSS id="jquery-ui" />
-		<skin:loadCSS id="fc-fontawesome" /> --->
-
-
-
-<!--- 
-
-		<cfsavecontent variable="html">	
-			<grid:div class="multiField">
-
-			<cfif listLen(joinItems)>
-				<cfoutput><ul id="join-#stObject.objectid#-#arguments.stMetadata.name#" class="arrayDetailView" style="list-style-type:none;border:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;"></cfoutput>
-					<cfset counter = 0 />
-					<cfloop list="#joinItems#" index="i">
-						<cfset counter = counter + 1 />
-						<cftry>
-							<skin:view objectid="#i#" webskin="librarySelected" r_html="htmlLabel" />
-							<cfcatch type="any">
-								<cfset htmlLabel = "<span title='#application.fc.lib.esapi.encodeForHTMLAttribute(cfcatch.message)#'>OBJECT NO LONGER EXISTS</span>" />
-							</cfcatch>
-						</cftry>
-						<cfoutput>
-						<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
-							<table style="width:100%;">
-							<tr>
-							<td class="" style="cursor:move;padding:3px;"><i class="fa fa-sort"></i></td>
-							<td class="" style="cursor:move;width:100%;padding:3px;">#htmlLabel#</td>
-							<td class="" style="padding:3px;white-space:nowrap;">
-								
-								<cfif stActions.ftAllowEdit>
-									<ft:button
-										Type="button" 
-										priority="secondary"
-										class="small"
-										value="Edit"
-										text="Edit" 
-										onClick="fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#i#');" />
-						
-								</cfif>
-								
-								<cfif stActions.ftRemoveType EQ "delete">
-									<ft:button
-										Type="button" 
-										priority="secondary"
-										class="small"
-										value="Delete" 
-										text="Delete" 
-										confirmText="Are you sure you want to delete this item? Doing so will immediately remove this item from the database." 
-										onClick="fcForm.deleteLibraryItem('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#i#');" />
-								<cfelseif stActions.ftRemoveType EQ "remove">
-									<ft:button
-										Type="button" 
-										priority="secondary"
-										class="small"
-										value="Remove" 
-										text="Remove" 
-										confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database." 
-										onClick="fcForm.detachLibraryItem('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#i#');" />
-						 
-								</cfif>
-								
-							</td>
-							</tr>
-							</table>
-						</li>
-						</cfoutput>	
-					</cfloop>
-				<cfoutput></ul></cfoutput>
-				
-				<cfoutput><input type="hidden" id="#arguments.fieldname#" name="#arguments.fieldname#" value="#joinItems#" /></cfoutput>
-			<cfelse>
-				<cfoutput><input type="hidden" id="#arguments.fieldname#" name="#arguments.fieldname#" value="" /></cfoutput>
-			</cfif>
-			
-			<ft:buttonPanel style="border:none; text-align:left;">
-				
-			<cfoutput>
-
-					<cfif arguments.stMetadata.ftAllowCreate>
-
-						<cfif listLen(arguments.stMetadata.ftJoin) GT 1>
-							<div class="btn-group">
-								<a class="btn dropdown-toggle" data-toggle="dropdown"><i class="fa fa-plus"></i> Create &nbsp;&nbsp;<i class="fa fa-caret-down" style="margin-right:-4px;"></i></a>
-								<ul class="dropdown-menu">
-									<cfloop list="#arguments.stMetadata.ftJoin#" index="i">
-										<li value="#trim(i)#"><a onclick="$j('###arguments.fieldname#-add-type').val('#trim(i)#'); fcForm.openLibraryAdd('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');">#application.fapi.getContentTypeMetadata(i, 'displayname', i)#</a></li>
-									</cfloop>
-								</ul>
-							</div>
-						<cfelse>
-							<a class="btn" onclick="fcForm.openLibraryAdd('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');"><i class="fa fa-plus"></i> Create</a>
-						</cfif>
-						<input type="hidden" id="#arguments.fieldname#-add-type" value="#arguments.stMetadata.ftJoin#" />
-
-					</cfif>
-					
-					<cfif arguments.stMetadata.ftAllowBulkUpload and arguments.stMetadata.type eq "array">
-
-						<cfset lBulkUploadable = "" />
-						<cfloop list="#arguments.stMetadata.ftJoin#" index="i">
-							<cfif application.stCOAPI[i].bBulkUpload>
-								<cfset lBulkUploadable = listappend(lBulkUploadable,i) />
-							</cfif>
-						</cfloop>
-
-						<cfif listLen(lBulkUploadable) GT 1>
-							<div class="btn-group">
-								<a class="btn dropdown-toggle" data-toggle="dropdown"><i class="fa fa-cloud-upload"></i> Bulk Upload &nbsp;&nbsp;<i class="fa fa-caret-down" style="margin-right:-4px;"></i></a>
-								<ul class="dropdown-menu">
-									<cfloop list="#lBulkUploadable#" index="i">
-										<li value="#trim(i)#"><a id="#arguments.fieldname#-bulkupload-btn" onclick="$j('###arguments.fieldname#-bulkupload-type').val('#trim(i)#'); fcForm.openLibraryBulkUpload('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');">#application.fapi.getContentTypeMetadata(i, 'displayname', i)#</a></li>
-									</cfloop>
-								</ul>
-							</div>
-							<input type="hidden" id="#arguments.fieldname#-bulkupload-type" value="#lBulkUploadable#" />
-						<cfelseif len(lBulkUploadable)>
-							<a class="btn" onclick="fcForm.openLibraryBulkUpload('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');"><i class="fa fa-cloud-upload"></i> Bulk Upload</a>
-							<input type="hidden" id="#arguments.fieldname#-bulkupload-type" value="#lBulkUploadable#" />
-						</cfif>
-
-					</cfif>
-					
-					<cfif stActions.ftAllowSelect>
-						<a class="btn" onclick="fcForm.openLibrarySelect('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');"><i class="fa fa-search"></i> Select</a>
-					</cfif>
-					
-					<cfif listLen(joinItems) and arguments.stMetadata.ftAllowRemoveAll>
-						
-						<cfif stActions.ftRemoveType EQ "delete">
-							<ft:button	Type="button" 
-										priority="secondary"
-										class="small"
-										value="Delete All" 
-										text="delete all" 
-										confirmText="Are you sure you want to delete all the attached items?"
-										onClick="fcForm.deleteAllLibraryItems('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#joinItems#');" />
-						<cfelseif stActions.ftRemoveType EQ "remove">
-							<ft:button	Type="button" 
-										priority="secondary"
-										class="small"
-										value="Remove All"
-										text="remove all"
-										confirmText="Are you sure you want to remove all the attached items?"
-										onClick="fcForm.detachAllLibraryItems('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#joinItems#');" />
-							
-						</cfif>
-					</cfif>
-				
-			</cfoutput>
-			</ft:buttonPanel>
- 
-			<cfoutput>
-				<script type="text/javascript">
-				$j(function() {
-					fcForm.initSortable('#arguments.stobject.typename#','#arguments.stobject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');
-				});
-				</script>
-			</cfoutput>
-
-
-			</grid:div>
-		</cfsavecontent> --->
-
-
 		<cfset joinItems = getJoinList(arguments.stObject[arguments.stMetadata.name]) />
-		<cfdump var="#joinItems#">
-<cfdump var="#arguments.stObject[arguments.stMetadata.name]#">
 
-<cfdump var="#form#">
 		<cfsavecontent variable="html">
 			<cfoutput>
 
@@ -304,38 +133,39 @@
 
 					<div id="upload-dropzone" class="upload-dropzone">
 						<cfloop list="#joinItems#" index="item">
-
+							<cfset stItem = application.fapi.getContentObject(tyapename=arguments.stMetadata.ftJoin,objectid=item)>
+							<cfset stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property='file') />
+							
 <!--- 
 							<ul id="join-#stObject.objectid#-#arguments.stMetadata.name#" 
 								class="arrayDetailView" 
 								style="list-style-type:none;border:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;">
 							 --->
 
-								<div class="upload-item upload-item-complete">
-									<div class="upload-item-row">
-										<div class="upload-item-container">
-											<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(item, "."))>
-												<div class="upload-item-image">
 
-													<img src="#application.fc.lib.cdn.ioGetFileLocation(location="publicfiles",file=item, bRetrieve=true).path#">
-												</div>
-											<cfelse>											
-												<div class="upload-item-nonimage" style="display:block;">
-													<i class='fa fa-file-text-o'></i>
-												</div>
-											</cfif>
-											<div class="upload-item-progress-bar"></div>
-										</div>
-										<div class="upload-item-info">
-											<div class="upload-item-file">#listLast(item, "/")#</div>
-										</div>
-										<div class="upload-item-state"></div>
-										<div class="upload-item-buttons">
-											<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
-										</div>
+							<div class="upload-item upload-item-complete">
+								<div class="upload-item-row">
+									<div class="upload-item-container">
+										<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem.file, "."))>
+											<div class="upload-item-image">
+												<img src="#getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path#">
+											</div>
+										<cfelse>											
+											<div class="upload-item-nonimage" style="display:block;">
+												<i class='fa fa-file-text-o'></i>
+											</div>
+										</cfif>
+										<div class="upload-item-progress-bar"></div>
+									</div>
+									<div class="upload-item-info">
+										<div class="upload-item-file">#listLast(stItem.file, "/")#</div>
+									</div>
+									<div class="upload-item-state"></div>
+									<div class="upload-item-buttons">
+										<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
 									</div>
 								</div>
-
+							</div>	
 							<!--- </ul> --->
 
 						</cfloop>
@@ -408,20 +238,19 @@
 									cache: false,
 						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
 								 		 + '&objectid=#application.fapi.getUUID()#&filename=' 
-								 		 + file.name + '&view=ajaxSaveFile' 
-								 		 + '&property=#arguments.stMetadata.name#'
+								 		 + file.name + '&view=displayAjaxSaveFile' 
+								 		 + '&property=#arguments.stMetadata.name#',
+								 	success: function (result) {
+										var oldValues = $j("###arguments.fieldname#").val();
+										$j("###arguments.fieldname#").val(oldValues + ',' +result.objectid);
+								}
 								});
 
-								$("#" + options.fieldname).val(fieldfiles.join("|"));
+								
 							}
 
 						}
-					},
-					init : {
-		            UploadComplete: function(up, files) {
-		                // Called after initialization is finished and internal event handlers bound
-		                alert('test')
-		            }
+					
            		 });
 				</script>
 
