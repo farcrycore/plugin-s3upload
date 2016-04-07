@@ -12,6 +12,8 @@
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
 
+	<cfproperty name="ftTargetProperty" default="false" hint="Property of individual object in the joined content type.">
+
 <!--- TODO: implement allowed file extensions --->
 <!--- TODO: implement ftSecure flag --->
 
@@ -132,7 +134,7 @@
 						class="arrayDetailView" 
 						style="list-style-type:none;border-bottom:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;">
 
-						<div id="#arguments.fieldname#-container" class="s3upload upload-empty">
+						<div id="#arguments.fieldname#-container" class="s3upload upload-empty" style="padding-top:10px;">
 							<div id="upload-placeholder" class="upload-placeholder">
 								<div class="upload-placeholder-message">
 									#placeholderAddLabel#
@@ -244,27 +246,35 @@
 							]
 						},
 						fc: {
-							"arrayUpload": true,
+							"arrayupload": true,
 							"webroot": "#application.url.webroot#/index.cfm?ajaxmode=1",
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
 							"property": "#arguments.stMetadata.name#",
 							"onFileUploaded": function(file) {
-								var objectid = "#application.fapi.getUUID()#";
+								
+								//create a new object for the file
 								$j.ajax({
 									dataType: "json",
 									type: 'get',
 									cache: false,
 						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
-								 		 + '&objectid=' +objectid
 								 		 + '&filename=' + file.name
 								 		 + '&view=displayAjaxSaveFile' 
+								 		 + '&targetproperty=#arguments.stMetadata.ftTargetProperty#'
 								 		 + '&property=#arguments.stMetadata.name#',
 								 	success: function (result) {
-										var oldValues = $j("###arguments.fieldname#").val();
-										$j("###arguments.fieldname#").val(oldValues + ',' +result.objectid);
-										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",objectid);
-										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+objectid);
+								 		if (result.success) {	
+
+								 			//append new objectid to the existing ones
+											var aObjectIds = $j("###arguments.fieldname#").val().split( "," );
+											aObjectIds.push(result.objectid);
+											$j("###arguments.fieldname#").val(aObjectIds.join(","));
+
+											//update html with appropriate attributes to work with sorting
+											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
+											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
+								 		}
 								}
 								});	
 							},
@@ -274,9 +284,10 @@
 								name = name || "";
 								size = size || "0";
 
+								// update html to work with sort
 								var item = $j(
 
-									 '<li id="join-item-#arguments.stMetadata.name#-' + id + '" class="sort" serialize="' + id + '" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">'
+									  '<li id="join-item-#arguments.stMetadata.name#-' + id + '" class="sort" serialize="' + id + '" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">'
 									+ '	<table style="width:100%;">'
 									+ '	<tr>'
 									+ '	<td class="" style="cursor:move;padding:3px;"><i class="fa fa-sort"></i></td>'
@@ -307,7 +318,34 @@
 
 								);
 								return item;
-							}
+							},
+							"onFileRemove": function(item,file) {
+
+								var objectid = $j(item).attr("serialize");
+
+								// delete object on remove file
+								$j.ajax({
+									dataType: "json",
+									type: 'get',
+									cache: false,
+						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
+								 		 + '&objectid=' + objectid
+								 		 + '&view=displayAjaxDeleteFile',
+								 	success: function (result) {
+								 		if (result.success) {
+
+								 			//remove this objectid from hidden field
+											var aValues = $j("###arguments.fieldname#").val().split( "," );
+											aValues.splice( $j.inArray(result.objectid, aValues), 1 );
+											$j("###arguments.fieldname#").val(aValues.join(","));
+
+											if($j("###arguments.fieldname#").val()) {
+												$j(".s3upload").removeClass("upload-empty");
+											}
+								 		}
+								}
+								});	
+							},
 
 						}
 					
@@ -401,8 +439,6 @@
 			<cfset returnHTML = application.fapi.getContentType("#stobj.typename#").getView(stObject=stobj, template=arguments.stMetaData.ftLibrarySelectedWebskin, alternateHtml=stobj.label) />
 		</cfif>
 		
-		
-
 		<cfreturn returnHTML>
 	</cffunction>	
 <!--- 

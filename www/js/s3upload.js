@@ -68,9 +68,18 @@ function s3upload($, plupload, options) {
 
 		// bind upload item remove button
 		$dropzone.delegate(".upload-button-remove", "click", function(evt){
+
 			var item = $(evt.currentTarget).closest(".upload-item");
 			var file = uploader.getFile(item.attr("id"));
+
 			uploader.removeFile(file);
+
+			if (options.fc.onFileRemove) {
+				item = $(evt.currentTarget).closest("li.sort");
+				// remove file uuid from hidden field & delete the object
+				options.fc.onFileRemove(item,file);
+			}
+			
 			item.remove();
 		});
 
@@ -294,7 +303,7 @@ function s3upload($, plupload, options) {
 		} else {
 			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
 		}
-		
+
 		if (isImageFile(file) && file.size < 10000000) {
 			// render a preview for a "small" image (less than 10MB)
 			// load image
@@ -349,7 +358,7 @@ function s3upload($, plupload, options) {
 			}
 		}
 
-		if (!options.fc.arrayUpload) {
+		if (!options.fc.arrayupload) {
 			$("#" + options.fieldname).val(fieldfiles.join("|"));
 			$("#" + options.fieldname + "_orientation").val(orientation.join("|"));
 		}
