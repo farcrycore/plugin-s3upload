@@ -1,12 +1,5 @@
-<cfcomponent displayname="S3 Upload" extends="farcry.core.packages.formtools.join" output="false">
+<cfcomponent displayname="S3 Array Upload" extends="farcry.core.packages.formtools.join" output="false">
 
-	<cfproperty name="ftJoin" required="true" default="" options="comma seperated list of types" hint="A list of the user can select from. e.g 'dmImage,dmfile,dmflash'"/>
-	<cfproperty name="ftAllowSelect" required="false" default="false" options="true,false" hint="Allows user to select existing records within the library picker"/>
-	<cfproperty name="ftAllowCreate" required="false" default="true" options="true,false" hint="Allows user create new record within the library picker"/>
-	<cfproperty name="ftAllowEdit" required="false" default="false" options="true,false" hint="Allows user edit new record within the library picker"/>
-	<cfproperty name="ftRemoveType" required="false" default="remove" options="delete,remove" hint="remove will only remove from the join, delete will remove from the database. detach is a deprecated alias for remove."/>
-	<cfproperty name="ftAllowRemoveAll" required="false" default="false" options="true,false" hint="Allows user to remove all items at once"/>
-	
 	<cfproperty name="ftAllowedFileExtensions" default="jpg,jpeg,png,gif,pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi">
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
@@ -141,7 +134,6 @@
 								</div>
 							</div>
 
-
 							<div id="upload-dropzone" class="upload-dropzone" style="padding:0px;">
 								<cfset counter = 0 />
 									<cfloop list="#joinItems#" index="i">
@@ -170,9 +162,21 @@
 														<div class="upload-item-progress-bar"></div>
 													</div>
 													<div class="upload-item-info">
-														<div class="upload-item-file">#listLast(stItem.file, "/")#</div>
+														<div class="upload-item-file">
+															<cfif len(stItem.title)>
+																#stItem.title#
+															<cfelse>
+																#listLast(stItem.file, "/")#
+															</cfif> 
+														</div>
 													</div>
 													<div class="upload-item-state"></div>
+
+													<div class="upload-item-buttons">
+														<cfif stActions.ftAllowEdit>
+															<button Type="button" value="Edit" text="Edit" onClick="fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','#i#');"><i class="fa fa-pencil-square-o"></i></button>
+														</cfif>
+													</div>
 													<div class="upload-item-buttons">
 														<cfif stActions.ftRemoveType EQ "delete">
 															<button type="button" title="Delete" class="upload-button-remove"
@@ -181,7 +185,6 @@
 															<button type="button" title="Remove" class="upload-button-remove" removeOnly="true"
 																	confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database."><i class="fa fa-times"></i></button>
 														</cfif>
-
 													</div>
 												</div>
 											</div>	
@@ -197,7 +200,31 @@
 								</div>
 
 							<div style="border:none; text-align:left;" class="buttonHolder form-actions">
+
 								<button id="upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
+
+								<cfif arguments.stMetadata.ftAllowCreate>
+
+									<cfif listLen(arguments.stMetadata.ftJoin) GT 1>
+										<div class="btn-group">
+											<a class="btn dropdown-toggle" data-toggle="dropdown"><i class="fa fa-plus"></i> Create &nbsp;&nbsp;<i class="fa fa-caret-down" style="margin-right:-4px;"></i></a>
+											<ul class="dropdown-menu">
+												<cfloop list="#arguments.stMetadata.ftJoin#" index="i">
+													<li value="#trim(i)#"><a onclick="$j('###arguments.fieldname#-add-type').val('#trim(i)#'); fcForm.openLibraryAdd('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');">#application.fapi.getContentTypeMetadata(i, 'displayname', i)#</a></li>
+												</cfloop>
+											</ul>
+										</div>
+									<cfelse>
+										<a class="btn" onclick="fcForm.openLibraryAdd('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');"><i class="fa fa-plus"></i> Create</a>
+									</cfif>
+									<input type="hidden" id="#arguments.fieldname#-add-type" value="#arguments.stMetadata.ftJoin#" />
+
+								</cfif>
+
+								<cfif stActions.ftAllowSelect>
+									<a class="btn" onclick="fcForm.openLibrarySelect('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#');"><i class="fa fa-search"></i> Select</a>
+								</cfif>
+
 							</div>
 
 						</div>
@@ -281,11 +308,17 @@
 											//update html with appropriate attributes to work with sorting
 											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
 											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
+
+											// bind farcry objectid into file
+											file.objectid = result.objectid;
+
+											//enable edit button for just added images
+											$j('##editAdded-'+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+file.objectid+"');");
 								 		}
-								}
+									}
 								});	
 							},
-							"getItemTemplate": function(id, name, size) {
+							"getItemTemplate": function(id, name, size, objectid) {
 
 								id = id || "";
 								name = name || "";
@@ -294,7 +327,7 @@
 								// update html to work with sort
 								var item = $j(
 
-									  '<li id="join-item-#arguments.stMetadata.name#-' + id + '" class="sort" serialize="' + id + '" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">'
+									  '<li id="join-item-#arguments.stMetadata.name#-' + objectid + '" class="sort" serialize="' + objectid + '" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">'
 									+ '	<table style="width:100%;">'
 									+ '	<tr>'
 									+ '	<td class="" style="cursor:move;padding:3px;"><i class="fa fa-sort"></i></td>'
@@ -312,6 +345,9 @@
 									+ '    <div class="upload-item-state">'
 									+ '      <div class="upload-item-status">Waiting</div>'
 									+ '    </div>'
+									+ ' 	<div class="upload-item-buttons">'
+									+ ' 		<button Type="button" value="Edit" text="Edit" id="editAdded-' + id + '"><i class="fa fa-pencil-square-o"></i></button>'
+									+ ' 	</div>'
 									+ '    <div class="upload-item-buttons">'
 									+ '    <button type="button" title="Remove" class="upload-button-remove" removeOnly="true" confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database."><i class="fa fa-times"></i></button>'
 									+ '    </div>'
@@ -377,77 +413,6 @@
 
 	</cffunction>
 
-	<cffunction name="display" access="public" output="false" returntype="string" hint="This will return a string of formatted HTML text to display.">
-		<cfargument name="typename" required="true" type="string" hint="The name of the type that this field is part of.">
-		<cfargument name="stObject" required="true" type="struct" hint="The object of the record that this field is part of.">
-		<cfargument name="stMetadata" required="true" type="struct" hint="This is the metadata that is either setup as part of the type.cfc or overridden when calling ft:object by using the stMetadata argument.">
-		<cfargument name="fieldname" required="true" type="string" hint="This is the name that will be used for the form field. It includes the prefix that will be used by ft:processform.">
-
-		<cfset var returnHTML = ""/>
-		<cfset var i = "" />
-		<cfset var o = "" />
-		<cfset var q = "" />
-		<cfset var ULID = "" />
-		<cfset var stobj = "" />
-		<cfset var html = "" />
-		<cfset var oData = "" />
-
-		<cfset arguments.stMetadata = prepMetadata(stObject = arguments.stObject, stMetadata = arguments.stMetadata) />
-
-		<cfparam name="arguments.stMetadata.ftLibrarySelectedWebskin" default="librarySelected">
-		<cfparam name="arguments.stMetadata.ftLibrarySelectedListClass" default="thumbNailsWrap">
-		<cfparam name="arguments.stMetadata.ftLibrarySelectedListStyle" default="">
-		<cfparam name="arguments.stMetadata.ftJoin" default="">
-		
-		<!--- We need to get the Array Field Items as a query --->
-		<cfset o = createObject("component",application.stcoapi[arguments.typename].packagepath)>
-		
-		<cfif arguments.stMetadata.type EQ "array">
-			<cfset q = o.getArrayFieldAsQuery(objectid="#arguments.stObject.ObjectID#", Typename="#arguments.typename#", Fieldname="#stMetadata.Name#", ftJoin="#stMetadata.ftJoin#")>
-			
-			<cfsavecontent variable="returnHTML">
-			<cfoutput>
-					
-				<cfset ULID = "#arguments.fieldname#_list">
-				
-				<cfif q.RecordCount>
-				 
-					<div id="#ULID#" class="#arguments.stMetadata.ftLibrarySelectedListClass#" style="#arguments.stMetadata.ftLibrarySelectedListStyle#">
-						<cfloop query="q">
-							<!---<li id="#arguments.fieldname#_#q.objectid#"> --->
-								
-								<div>
-									<cfif listContainsNoCase(arguments.stMetadata.ftJoin,q.typename)>
-										<cfset oData = createObject("component",application.stcoapi[q.typename].packagepath) />
-										<cfset stobj = oData.getData(objectid=q.data) />
-										<cfif FileExists("#application.path.project#/webskin/#q.typename#/#arguments.stMetadata.ftLibrarySelectedWebskin#.cfm")>
-											<cfset html = oData.getView(stObject=stobj,template="#arguments.stMetadata.ftLibrarySelectedWebskin#") />
-											#html#								
-											<!---<cfinclude template="/farcry/projects/#application.projectDirectoryName#/webskin/#q.typename#/#arguments.stMetadata.ftLibrarySelectedWebskin#.cfm"> --->
-										<cfelse>
-											#stobj.label#
-										</cfif>
-									<cfelse>
-										INVALID ATTACHMENT (#q.typename#)
-									</cfif>
-								</div>
-														
-							<!---</li> --->
-						</cfloop>
-					</div>
-				</cfif>
-	
-					
-			</cfoutput>
-			</cfsavecontent>			
-		<cfelseif len(arguments.stObject[arguments.stMetaData.Name])>
-			<cfset stobj = application.fapi.getContentObject(objectid=arguments.stObject[arguments.stMetaData.Name])>
-			<cfset returnHTML = application.fapi.getContentType("#stobj.typename#").getView(stObject=stobj, template=arguments.stMetaData.ftLibrarySelectedWebskin, alternateHtml=stobj.label) />
-		</cfif>
-		
-		<cfreturn returnHTML>
-	</cffunction>	
-<!--- 
 	<cffunction name="display" access="public" output="true" returntype="string" hint="This will return a string of formatted HTML text to display.">
 		<cfargument name="typename" required="true" type="string" hint="The name of the type that this field is part of.">
 		<cfargument name="stObject" required="true" type="struct" hint="The object of the record that this field is part of.">
@@ -461,7 +426,7 @@
 		</cfsavecontent>
 		
 		<cfreturn html>
-	</cffunction> --->
+	</cffunction>
 
 
 

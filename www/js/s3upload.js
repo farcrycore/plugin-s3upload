@@ -252,7 +252,8 @@ function s3upload($, plupload, options) {
 		updateData();
 
 		if (options.fc.onFileUploaded) {
-			options.fc.onFileUploaded(file);
+			var objectid = options.fc.onFileUploaded(file);
+		
 		}
 
 	}
@@ -274,7 +275,7 @@ function s3upload($, plupload, options) {
 	}
 
 
-	function getItemTemplate(id, name, size) {
+	function getItemTemplate(id, name, size, objectid) {
 
 		id = id || "";
 		name = name || "";
@@ -310,9 +311,9 @@ function s3upload($, plupload, options) {
 		var item;
 		// get item template
 		if (options.fc.getItemTemplate) {
-			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
+			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size), file.objectid);
 		} else {
-			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
+			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size), file.objectid);
 		}
 
 		if (isImageFile(file) && file.size < 10000000) {

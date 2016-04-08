@@ -13,6 +13,7 @@
 	</cfif>
 
 	<cfset stobj['label'] = url.filename>
+	<cfset stobj['title'] = url.filename>
 	<cfset setData(stProperties=stobj)>
 
 <cfcatch>
