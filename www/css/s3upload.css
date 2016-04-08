@@ -155,3 +155,7 @@
 	cursor: pointer;
 
 }
+
+.s3upload .upload-item-buttons button .fa{
+	font-size: 18px;
+}

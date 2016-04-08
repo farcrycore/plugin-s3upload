@@ -71,14 +71,25 @@ function s3upload($, plupload, options) {
 
 			var item = $(evt.currentTarget).closest(".upload-item");
 			var file = uploader.getFile(item.attr("id"));
+			var confirmText = $(evt.currentTarget).attr("confirmText");
+			var removeOnly = $(evt.currentTarget).attr("removeOnly");
 
-			uploader.removeFile(file);
+			//confirm text
+			if(confirmText) {
+				if(!confirm(confirmText)) {
+					return false;
+				}
+			};	
+
+			if(file) {
+				uploader.removeFile(file);
+			};
 
 			if (options.fc.onFileRemove) {
 				item = $(evt.currentTarget).closest("li.sort");
 				// remove file uuid from hidden field & delete the object
-				options.fc.onFileRemove(item,file);
-			}
+				options.fc.onFileRemove(item,file,removeOnly);
+			};
 			
 			item.remove();
 		});
@@ -406,5 +417,6 @@ function s3upload($, plupload, options) {
 
 		return(result);
 	}
+
 
 }

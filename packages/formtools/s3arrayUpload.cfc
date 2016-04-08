@@ -174,7 +174,14 @@
 													</div>
 													<div class="upload-item-state"></div>
 													<div class="upload-item-buttons">
-														<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
+														<cfif stActions.ftRemoveType EQ "delete">
+															<button type="button" title="Delete" class="upload-button-remove"
+																	confirmText="Are you sure you want to delete this item? Doing so will immediately remove this item from the database."><i class="fa fa-trash-o"></i></button>
+														<cfelseif stActions.ftRemoveType EQ "remove">
+															<button type="button" title="Remove" class="upload-button-remove" removeOnly="true"
+																	confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database."><i class="fa fa-times"></i></button>
+														</cfif>
+
 													</div>
 												</div>
 											</div>	
@@ -306,7 +313,7 @@
 									+ '      <div class="upload-item-status">Waiting</div>'
 									+ '    </div>'
 									+ '    <div class="upload-item-buttons">'
-									+ '      <button class="upload-button-remove" title="Remove">&times;</button>'
+									+ '    <button type="button" title="Remove" class="upload-button-remove" removeOnly="true" confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database."><i class="fa fa-times"></i></button>'
 									+ '    </div>'
 									+ '			</div>'
 									+ '		</div>'
@@ -319,32 +326,31 @@
 								);
 								return item;
 							},
-							"onFileRemove": function(item,file) {
+							"onFileRemove": function(item,file,removeOnly) {
 
 								var objectid = $j(item).attr("serialize");
 
-								// delete object on remove file
-								$j.ajax({
-									dataType: "json",
-									type: 'get',
-									cache: false,
-						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
-								 		 + '&objectid=' + objectid
-								 		 + '&view=displayAjaxDeleteFile',
-								 	success: function (result) {
-								 		if (result.success) {
+					 			//remove this objectid from hidden field
+								var aValues = $j("###arguments.fieldname#").val().split( "," );
+								aValues.splice( $j.inArray(objectid, aValues), 1 );
+								$j("###arguments.fieldname#").val(aValues.join(","));
 
-								 			//remove this objectid from hidden field
-											var aValues = $j("###arguments.fieldname#").val().split( "," );
-											aValues.splice( $j.inArray(result.objectid, aValues), 1 );
-											$j("###arguments.fieldname#").val(aValues.join(","));
-
-											if($j("###arguments.fieldname#").val()) {
-												$j(".s3upload").removeClass("upload-empty");
-											}
-								 		}
+								// delete object
+								if (!removeOnly) {
+									$j.ajax({
+										dataType: "json",
+										type: 'get',
+										cache: false,
+							 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
+									 		 + '&objectid=' + objectid
+									 		 + '&view=displayAjaxDeleteFile'
+									});	
 								}
-								});	
+
+								if($j("###arguments.fieldname#").val()) {
+									$j(".s3upload").removeClass("upload-empty");
+								}
+
 							},
 
 						}
