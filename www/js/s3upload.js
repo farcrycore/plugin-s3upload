@@ -27,8 +27,8 @@ function s3upload($, plupload, options) {
 		url: options.url,
 
 		container: options.fieldname + "-container",
-		browse_button: "upload-add",
-		drop_element: "upload-dropzone",
+		browse_button: options.fieldname + "-upload-add",
+		drop_element: options.fieldname + "-upload-dropzone",
 
 		max_files: options.maxfiles,
 		multi_selection: (options.maxfiles != 1),
@@ -69,10 +69,20 @@ function s3upload($, plupload, options) {
 		// bind upload item remove button
 		$dropzone.delegate(".upload-button-remove", "click", function(evt){
 
-			var item = $(evt.currentTarget).closest(".upload-item");
+			var item;
+
+			// use different selector for array upload
+			if (options.fc.arrayupload) {
+				item = $(evt.currentTarget).closest("li.sort");
+				var confirmText = $(evt.currentTarget).attr("confirmText");
+				var removeOnly = $(evt.currentTarget).attr("removeOnly");
+			} else {
+				item = $(evt.currentTarget).closest(".upload-item");
+				$("#" + options.fieldname).val('');
+				$("#" + options.fieldname + "-container").addClass("upload-empty");
+			};
+
 			var file = uploader.getFile(item.attr("id"));
-			var confirmText = $(evt.currentTarget).attr("confirmText");
-			var removeOnly = $(evt.currentTarget).attr("removeOnly");
 
 			//confirm text
 			if(confirmText) {
@@ -85,12 +95,11 @@ function s3upload($, plupload, options) {
 				uploader.removeFile(file);
 			};
 
-			if (options.fc.onFileRemove) {
-				item = $(evt.currentTarget).closest("li.sort");
-				// remove file uuid from hidden field & delete the object
+			// remove file uuid from hidden field or delete the object
+			if(options.fc.onFileRemove) {
 				options.fc.onFileRemove(item,file,removeOnly);
 			};
-			
+
 			item.remove();
 		});
 
@@ -252,8 +261,7 @@ function s3upload($, plupload, options) {
 		updateData();
 
 		if (options.fc.onFileUploaded) {
-			var objectid = options.fc.onFileUploaded(file);
-		
+			options.fc.targetobjectid = options.fc.onFileUploaded(file);
 		}
 
 	}
@@ -275,7 +283,7 @@ function s3upload($, plupload, options) {
 	}
 
 
-	function getItemTemplate(id, name, size, objectid) {
+	function getItemTemplate(id, name, size) {
 
 		id = id || "";
 		name = name || "";
@@ -311,9 +319,9 @@ function s3upload($, plupload, options) {
 		var item;
 		// get item template
 		if (options.fc.getItemTemplate) {
-			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size), file.objectid);
+			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size), options.fc.targetobjectid);
 		} else {
-			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size), file.objectid);
+			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
 		}
 
 		if (isImageFile(file) && file.size < 10000000) {

@@ -134,11 +134,11 @@
 								</div>
 							</div>
 
-							<div id="upload-dropzone" class="upload-dropzone" style="padding:0px;">
+							<div id="#arguments.fieldname#-upload-dropzone" class="upload-dropzone" style="padding:0px;">
 								<cfset counter = 0 />
 									<cfloop list="#joinItems#" index="i">
 										<cfset counter = counter + 1 />
-										<cfset stItem = application.fapi.getContentObject(tyapename=arguments.stMetadata.ftJoin,objectid=i)>
+										<cfset stItem = application.fapi.getContentObject(objectid=i)>
 										<cfset stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property='file') />
 
 										<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
@@ -201,7 +201,7 @@
 
 							<div style="border:none; text-align:left;" class="buttonHolder form-actions">
 
-								<button id="upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
+								<button id="#arguments.fieldname#-upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
 
 								<cfif arguments.stMetadata.ftAllowCreate>
 
@@ -284,6 +284,7 @@
 							"webroot": "#application.url.webroot#/index.cfm?ajaxmode=1",
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
+							"targetobjectid": "",
 							"property": "#arguments.stMetadata.name#",
 							"onFileUploaded": function(file) {
 								
@@ -292,10 +293,9 @@
 									dataType: "json",
 									type: 'get',
 									cache: false,
-						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
+						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#' 
 								 		 + '&filename=' + file.name
 								 		 + '&view=displayAjaxSaveFile' 
-								 		 + '&targetproperty=#arguments.stMetadata.ftTargetProperty#'
 								 		 + '&property=#arguments.stMetadata.name#',
 								 	success: function (result) {
 								 		if (result.success) {	
@@ -309,12 +309,16 @@
 											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
 											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
 
-											// bind farcry objectid into file
-											file.objectid = result.objectid;
-
 											//enable edit button for just added images
-											$j('##editAdded-'+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+file.objectid+"');");
+											$j("##editAdded-"+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+result.objectid+"');");
+
+											//update list node with the new objectid
+											var $listnode = $j("##"+file.id).closest("li.sort");
+											$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
+											$listnode.attr("serialize", result.objectid);
 								 		}
+
+
 									}
 								});	
 							},
@@ -349,7 +353,7 @@
 									+ ' 		<button Type="button" value="Edit" text="Edit" id="editAdded-' + id + '"><i class="fa fa-pencil-square-o"></i></button>'
 									+ ' 	</div>'
 									+ '    <div class="upload-item-buttons">'
-									+ '    <button type="button" title="Remove" class="upload-button-remove" removeOnly="true" confirmText="Are you sure you want to remove this item? Doing so will only unlink this content item. The content will remain in the database."><i class="fa fa-times"></i></button>'
+									+ '    <button type="button" title="Remove" class="upload-button-remove" removeOnly="true"><i class="fa fa-times"></i></button>'
 									+ '    </div>'
 									+ '			</div>'
 									+ '		</div>'
@@ -377,17 +381,21 @@
 										dataType: "json",
 										type: 'get',
 										cache: false,
-							 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#arguments.stMetadata.ftJoin#' 
+							 			url: '#application.url.webroot#/index.cfm?ajaxmode=1' 
 									 		 + '&objectid=' + objectid
+									 		 + '&parenttype=#arguments.typename#'
+									 		 + '&property=#arguments.stMetadata.name#'
 									 		 + '&view=displayAjaxDeleteFile'
 									});	
 								}
 
 								if($j("###arguments.fieldname#").val()) {
-									$j(".s3upload").removeClass("upload-empty");
+									$j("##arguments.fieldname" + "-container").removeClass("upload-empty");
+								} else {
+									$j("##arguments.fieldname" + "-container").addClass("upload-empty");
 								}
 
-							},
+							}
 
 						}
 					

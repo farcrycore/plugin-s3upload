@@ -7,10 +7,12 @@
 	<cfset stProps = application.stcoapi[stobj.typename].stprops>
 
 	<!--- find out the target property --->	
-	<cfif structkeyexists(stProps[url.targetproperty].metadata,"ftS3UploadTarget") AND stProps[url.targetproperty].metadata.ftS3UploadTarget>
-		<cfset stMetadata = application.fapi.getPropertyMetadata(typename=stobj.typename, property=url.targetproperty) />
-		<cfset stobj[url.targetproperty] = stMetadata.ftDestination&'/'&url.filename>
-	</cfif>
+	<cfloop collection="#stProps#" item="targetProperty">
+		<cfif structkeyexists(stProps[targetProperty].metadata,"ftS3UploadTarget") AND stProps[targetProperty].metadata.ftS3UploadTarget>
+			<cfset stMetadata = application.fapi.getPropertyMetadata(typename=stobj.typename, property=targetProperty) />
+			<cfset stobj[targetProperty] = stMetadata.ftDestination&'/'&url.filename>
+		</cfif>
+	</cfloop>
 
 	<cfset stobj['label'] = url.filename>
 	<cfset stobj['title'] = url.filename>

@@ -110,7 +110,7 @@
 						</div>
 					</div>
 
-					<div id="upload-dropzone" class="upload-dropzone">
+					<div id="#arguments.fieldname#-upload-dropzone" class="upload-dropzone">
 						<cfloop list="#arguments.stMetadata.value#" index="item">
 							<div class="upload-item upload-item-complete">
 								<div class="upload-item-row">
@@ -131,7 +131,7 @@
 									</div>
 									<div class="upload-item-state"></div>
 									<div class="upload-item-buttons">
-										<!--- <button type="button" title="Remove" class="upload-button-remove">&times;</button> --->
+										<button type="button" title="Remove" class="upload-button-remove">&times;</button>
 									</div>
 								</div>
 							</div>
@@ -139,7 +139,7 @@
 					</div>
 
 					<div style="border:none; text-align:left;" class="buttonHolder form-actions">
-						<button id="upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
+						<button id="#arguments.fieldname#-upload-add" class="fc-btn btn" role="button" aria-disabled="false"><i class="fa fa-cloud-upload"></i> #buttonAddLabel#</button>
 					</div>
 
 				</div>
@@ -206,7 +206,7 @@
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
 							"property": "#arguments.stMetadata.name#"
-						}
+						}	
 					});
 				</script>
 
