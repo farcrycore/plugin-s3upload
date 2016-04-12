@@ -91,15 +91,15 @@ function s3upload($, plupload, options) {
 				}
 			};	
 
-			if(file) {
-				uploader.removeFile(file);
-			};
-
 			// remove file uuid from hidden field or delete the object
 			if(options.fc.onFileRemove) {
 				options.fc.onFileRemove(item,file,removeOnly);
 			};
 
+			if(file) {
+				uploader.removeFile(file);
+			};
+			
 			item.remove();
 		});
 
@@ -261,7 +261,7 @@ function s3upload($, plupload, options) {
 		updateData();
 
 		if (options.fc.onFileUploaded) {
-			options.fc.targetobjectid = options.fc.onFileUploaded(file);
+			options.fc.targetobjectid = options.fc.onFileUploaded(file,item);
 		}
 
 	}

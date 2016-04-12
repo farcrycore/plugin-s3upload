@@ -94,7 +94,7 @@
 			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#cdnConfig.bucket#";
 
 			var ftMin = 0;
-			var ftMax = 0;
+			var ftMax = 50;
 			var buttonAddLabel = "Add Files";
 
 // TODO: for mobile / responsive there should be no mention of drag/drop 
@@ -239,6 +239,14 @@
 				<input id="#arguments.fieldname#_errorcount" name="#arguments.fieldname#_errorcount" type="hidden" value="0">
 				<script>
 					$j(function(){
+						$j("###arguments.fieldname#_filescount").rules("add", {
+							min: #ftMin#,
+							max: #ftMax#,
+							messages: {
+								min: "Please attach at least #ftMin# files.",
+								max: "Please attach no more than #ftMax# files."
+							}
+						});
 						$j("###arguments.fieldname#_errorcount").rules("add", {
 							min: 0,
 							max: 0,
@@ -286,39 +294,41 @@
 							"objectid": "#arguments.stObject.objectid#",
 							"targetobjectid": "",
 							"property": "#arguments.stMetadata.name#",
-							"onFileUploaded": function(file) {
+							"onFileUploaded": function(file,item) {
 								
 								//create a new object for the file
 								$j.ajax({
 									dataType: "json",
-									type: 'get',
+									type: 'POST',
 									cache: false,
-						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#' 
-								 		 + '&filename=' + file.name
-								 		 + '&view=displayAjaxSaveFile' 
-								 		 + '&property=#arguments.stMetadata.name#',
+						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#&view=displayAjaxSaveFile',
+									data: {
+										"filename": file.name,
+										"property": "#arguments.stMetadata.name#"
+									},
 								 	success: function (result) {
-								 		if (result.success) {	
 
-								 			//append new objectid to the existing ones
-											var aObjectIds = $j("###arguments.fieldname#").val().split( "," );
-											aObjectIds.push(result.objectid);
-											$j("###arguments.fieldname#").val(aObjectIds.join(","));
+							 			//append new objectid to the existing ones
+										var aObjectIds = $j("###arguments.fieldname#").val().split( "," );
+										aObjectIds.push(result.objectid);
+										$j("###arguments.fieldname#").val(aObjectIds.join(","));
 
-											//update html with appropriate attributes to work with sorting
-											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
-											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
+										//update html with appropriate attributes to work with sorting
+										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
+										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
 
-											//enable edit button for just added images
-											$j("##editAdded-"+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+result.objectid+"');");
+										//enable edit button for just added images
+										$j("##editAdded-"+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+result.objectid+"');");
 
-											//update list node with the new objectid
-											var $listnode = $j("##"+file.id).closest("li.sort");
-											$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
-											$listnode.attr("serialize", result.objectid);
-								 		}
+										//update list node w<!---  --->ith the new objectid
+										var $listnode = $j("##"+file.id).closest("li.sort");
+										$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
+										$listnode.attr("serialize", result.objectid);
 
-
+									},
+									error: function() {
+										
+							 			$j('##' + file.id).removeClass("upload-item-complete").addClass("upload-item-error").find(".upload-item-status").text("Error");
 									}
 								});	
 							},
@@ -370,30 +380,36 @@
 
 								var objectid = $j(item).attr("serialize");
 
-					 			//remove this objectid from hidden field
-								var aValues = $j("###arguments.fieldname#").val().split( "," );
-								aValues.splice( $j.inArray(objectid, aValues), 1 );
-								$j("###arguments.fieldname#").val(aValues.join(","));
+								// remove or delete object
 
-								// delete object
-								if (!removeOnly) {
-									$j.ajax({
-										dataType: "json",
-										type: 'get',
-										cache: false,
-							 			url: '#application.url.webroot#/index.cfm?ajaxmode=1' 
-									 		 + '&objectid=' + objectid
-									 		 + '&parenttype=#arguments.typename#'
-									 		 + '&property=#arguments.stMetadata.name#'
-									 		 + '&view=displayAjaxDeleteFile'
-									});	
-								}
+								$j.ajax({
+									dataType: "json",
+									type: 'POST',
+									cache: false,
+						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1' 
+								 		 + '&objectid=' + objectid
+								 		 + '&view=displayAjaxDeleteFile',
+								 	data: {
+										"parenttype": "#arguments.typename#",
+										"property": "#arguments.stMetadata.name#",
+										"removeOnly": removeOnly
 
-								if($j("###arguments.fieldname#").val()) {
-									$j("##arguments.fieldname" + "-container").removeClass("upload-empty");
-								} else {
-									$j("##arguments.fieldname" + "-container").addClass("upload-empty");
-								}
+									},
+								 	success: function () {
+
+							 			//remove this objectid from hidden field
+										var aValues = $j("###arguments.fieldname#").val().split( "," );
+										aValues.splice( $j.inArray(objectid, aValues), 1 );
+										$j("###arguments.fieldname#").val(aValues.join(","));
+
+										if($j("###arguments.fieldname#").val()) {
+											$j("##arguments.fieldname" + "-container").removeClass("upload-empty");
+										} else {
+											$j("##arguments.fieldname" + "-container").addClass("upload-empty");
+										}
+
+									}
+								});	
 
 							}
 
