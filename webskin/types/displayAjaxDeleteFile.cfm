@@ -4,8 +4,7 @@
 <cfparam name="form.removeOnly" default="false">
 
 <cfif NOT form.removeOnly>
-	<cfset stResult = delete(objectid=url.objectid)>
-
+	<cfset stResult = delete(objectid=stobj.objectid)>
 	<cfif stResult.bSuccess>
 		<cfset stProps = application.stcoapi[form.parentType].stprops>
 		<cfset stTargetProps = application.stcoapi[stobj.typename].stprops>
@@ -21,4 +20,13 @@
 		</cfif>
 	</cfif>
 </cfif>
+
+<cfset result = {"objectid":"#stobj.objectid#"}>
+
+<cfcontent reset="true">
+<cfheader name="Content-Type" value="application/json">
+<cfoutput>#serializeJSON(result)#</cfoutput>
+
+
+
 
