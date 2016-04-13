@@ -99,6 +99,11 @@
 
 			var ftMin = 0;
 			var ftMax = 50;
+			var thumbWidth = 80;
+			var thumbheight = 80;
+			var cropMethod = 'fitinside';
+			var format = '';
+
 			var buttonAddLabel = "Add Files";
 
 // TODO: for mobile / responsive there should be no mention of drag/drop 
@@ -155,9 +160,24 @@
 												<div class="upload-item-row">
 													<div class="upload-item-container">
 														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[uploadProperty], "."))>
-															<div class="upload-item-image">
-																<img src="#getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path#">
-															</div>
+															<cfif NOT arguments.stMetadata.ftSecure>
+																<cfset var cdnLocation = getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
+																<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
+																	sourceURL=cdnLocation,
+																	cropParams={
+																		width:  "#thumbWidth#", 
+																		height: "#thumbheight#", 
+																		crop:   "#cropMethod#",
+																		format: "#format#"
+																	})>
+																<div class="upload-item-image">
+																	<img src="#croppedThumbnail#" />
+																</div>
+															<cfelse>
+																<div class="upload-item-nonimage" style="display:block;">
+																	<i class='fa fa-file-image-o'></i>
+																</div>
+															</cfif>
 														<cfelse>											
 															<div class="upload-item-nonimage" style="display:block;">
 																<i class='fa fa-file-text-o'></i>

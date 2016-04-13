@@ -83,7 +83,10 @@
 
 			var ftMin = 0;
 			var ftMax = 1;
-
+			var thumbWidth = 80;
+			var thumbheight = 80;
+			var cropMethod = 'fitinside';
+			var format = '';
 
 			var buttonAddLabel = "Add File";
 			if (ftMax > 1) {
@@ -115,9 +118,24 @@
 								<div class="upload-item-row">
 									<div class="upload-item-container">
 										<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(arguments.stMetadata.value, "."))>
+											<cfif NOT arguments.stMetadata.ftSecure>
+												<cfset var cdnLocation = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
+												<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
+													sourceURL=cdnLocation,
+													cropParams={
+														width: "#thumbWidth#", 
+														height: "#thumbheight#", 
+														crop: "#cropMethod#",
+														format: "#format#"
+													})>
 											<div class="upload-item-image">
-												<img src="#getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path#">
+												<img src="#croppedThumbnail#" />
 											</div>
+											<cfelse>
+												<div class="upload-item-nonimage" style="display:block;">
+													<i class='fa fa-file-image-o'></i>
+												</div>
+											</cfif>
 										<cfelse>											
 											<div class="upload-item-nonimage" style="display:block;">
 												<i class='fa fa-file-text-o'></i>
