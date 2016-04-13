@@ -4,12 +4,8 @@
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
+	<cfproperty name="ftS3UploadTarget" default="false" hint="Allow the property to be joined with array upload.">
 
-<!--- TODO: implement allowed file extensions --->
-<!--- TODO: implement ftSecure flag --->
-
-
-<!--- ftCDNLocation --->
 
 	<cffunction name="init" output="false">
 		<cfreturn this>
@@ -22,14 +18,22 @@
 		<cfargument name="fieldname" required="true" type="string" hint="This is the name that will be used for the form field. It includes the prefix that will be used by ft:processform.">
 		<cfargument name="inputClass" required="false" type="string" default="" hint="This is the class value that will be applied to the input field.">
 
+
 		<cfset var html = "">
 		<cfset var item = "">
 
 		<cfimport taglib="/farcry/core/tags/webskin" prefix="skin">
 
 		<cfscript>
+			var cdnLocation = "publicfiles";
+			var aclPermission = "public-read";
 
-			var cdnConfig = application.fc.lib.cdn.getLocation("publicfiles");
+			if (arguments.stMetadata.ftSecure) {
+				cdnLocation = "privatefiles";
+				aclPermission = "private";
+			}
+
+			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
 			cdnConfig.urlExpiry = 1800
 
 			var utils = new s3.utils();
@@ -56,7 +60,7 @@
 					{"x-amz-date": "#params["X-Amz-Date"]#" },
 					{"x-amz-signedheaders": "#params["X-Amz-SignedHeaders"]#" },
 
-					{ "acl": "public-read" },
+					{ "acl": "#aclPermission#" },
 					{ "bucket": "#cdnConfig.bucket#" },
 					[ "starts-with", "$key", "#fileUploadPath#" ],
 
@@ -90,13 +94,8 @@
 
 		</cfscript>
 
-		<skin:htmlhead id="s3upload">
-			<cfoutput>
-				<link rel="stylesheet" href="/farcry/plugins/s3upload/www/css/s3upload.css">
-				<script type="text/javascript" src="/farcry/plugins/s3upload/www/js/plupload-2.1.8/js/plupload.full.min.js"></script>
-				<script type="text/javascript" src="/farcry/plugins/s3upload/www/js/s3upload.js"></script>
-			</cfoutput>
-		</skin:htmlhead>
+		<skin:loadJS id="s3uploadJS" />
+		<skin:loadCSS id="s3uploadCSS" />
 
 		<cfsavecontent variable="html">
 			<cfoutput>
@@ -127,7 +126,7 @@
 										<div class="upload-item-progress-bar"></div>
 									</div>
 									<div class="upload-item-info">
-										<div class="upload-item-file">#listLast(stObject.file, "/")#</div>
+										<div class="upload-item-file">#listLast(arguments.stMetadata.value, "/")#</div>
 									</div>
 									<div class="upload-item-state"></div>
 									<div class="upload-item-buttons">
@@ -180,7 +179,7 @@
 						destinationpart: "#arguments.stMetadata.ftDestination#",
 						maxfiles: #ftMax#,
 						multipart_params: {
-							"acl" : "public-read",
+							"acl" : "#aclPermission#",
 							"key": "#fileUploadPath#/${filename}",
 							"name": "#fileUploadPath#/${filename}",
 							"filename": "#fileUploadPath#/${filename}",
@@ -197,8 +196,7 @@
 						filters: {
 							max_file_size : "#arguments.stMetadata.ftMaxSize#",
 							mime_types: [
-								{ title: "Images", extensions: "jpg,jpeg,png,gif" },
-								{ title: "Files", extensions: "pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi" }
+								{ title: "Files", extensions: "#arguments.stMetadata.ftAllowedFileExtensions#" }
 							]
 						},
 						fc: {
@@ -255,11 +253,15 @@
 			<cfset stResult.error = "No file defined">
 			<cfreturn stResult>
 		</cfif>
-		
+
 		<cfif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="privatefiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
+		
+
 		<cfelse>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="publicfiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
+
+
 		</cfif>
 		
 		<cfreturn stResult>
@@ -302,12 +304,8 @@
 		
 		<cfset var filepermission = false>
 		
-		
-		<cfimport taglib="/farcry/core/tags/security" prefix="sec">
-		
-		<sec:CheckPermission objectid="#arguments.stObject.objectid#" type="#arguments.stObject.typename#" permission="View" roles="Anonymous" result="filepermission" />
 		<cfparam name="arguments.stMetadata.ftSecure" default="false">
-		<cfif arguments.stMetadata.ftSecure eq "false" and (not structkeyexists(arguments.stObject,"status") or arguments.stObject.status eq "approved") and filepermission>
+		<cfif arguments.stMetadata.ftSecure eq "false">
 			<cfreturn false>
 		<cfelse>
 			<cfreturn true>

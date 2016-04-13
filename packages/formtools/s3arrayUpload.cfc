@@ -5,10 +5,6 @@
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
 
-	<cfproperty name="ftTargetProperty" default="false" hint="Property of individual object in the joined content type.">
-
-<!--- TODO: implement allowed file extensions --->
-<!--- TODO: implement ftSecure flag --->
 
 	<cffunction name="init" output="false">
 		<cfreturn this>
@@ -45,7 +41,15 @@
 
 		<cfscript>
 
-			var cdnConfig = application.fc.lib.cdn.getLocation("publicfiles");
+			var cdnLocation = "publicfiles";
+			var aclPermission = "public-read";
+
+			if (arguments.stMetadata.ftSecure) {
+				cdnLocation = "privatefiles";
+				aclPermission = "private";
+			}
+
+			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
 			cdnConfig.urlExpiry = 1800
 
 			var utils = new s3.utils();
@@ -72,7 +76,7 @@
 					{"x-amz-date": "#params["X-Amz-Date"]#" },
 					{"x-amz-signedheaders": "#params["X-Amz-SignedHeaders"]#" },
 
-					{ "acl": "public-read" },
+					{ "acl": "#aclPermission#" },
 					{ "bucket": "#cdnConfig.bucket#" },
 					[ "starts-with", "$key", "#fileUploadPath#" ],
 
@@ -101,20 +105,10 @@
 			var placeholderAddLabel = """#buttonAddLabel#"" or drag and drop here";
 
 		</cfscript>
-
- 
-		<skin:htmlhead id="s3upload">
-			<cfoutput>
-				<link rel="stylesheet" href="/farcry/plugins/s3upload/www/css/s3upload.css">
-				<script type="text/javascript" src="/farcry/plugins/s3upload/www/js/plupload-2.1.8/js/plupload.full.min.js"></script>
-				<script type="text/javascript" src="/farcry/plugins/s3upload/www/js/s3upload.js"></script>
-			</cfoutput>
-		</skin:htmlhead>
-
-		<skin:loadJS id="fc-jquery" />
+		
 		<skin:loadJS id="fc-jquery-ui" />
-		<skin:loadCSS id="jquery-ui" />
-		<skin:loadCSS id="fc-fontawesome" />
+		<skin:loadJS id="s3uploadJS" />
+		<skin:loadCSS id="s3uploadCSS" />
 
 		<cfset joinItems = getJoinList(arguments.stObject[arguments.stMetadata.name]) />
 
@@ -135,11 +129,21 @@
 							</div>
 
 							<div id="#arguments.fieldname#-upload-dropzone" class="upload-dropzone" style="padding:0px;">
-								<cfset counter = 0 />
+								<cfset var counter = 0 />
 									<cfloop list="#joinItems#" index="i">
+										<cfset var uploadProperty = "">
 										<cfset counter = counter + 1 />
-										<cfset stItem = application.fapi.getContentObject(objectid=i)>
-										<cfset stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property='file') />
+										<cfset var stItem = application.fapi.getContentObject(objectid=i)>
+										<cfset var stProps = application.stcoapi[stItem.typename].stprops>
+
+										<!--- find out the target property --->	
+										<cfloop collection="#stProps#" item="targetProperty">
+											<cfif structkeyexists(stProps[targetProperty].metadata,"ftS3UploadTarget") AND stProps[targetProperty].metadata.ftS3UploadTarget>
+												<cfset var stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property=targetProperty) />
+												<cfset var uploadProperty = targetProperty>
+												<cfbreak>
+											</cfif>
+										</cfloop>
 
 										<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
 											<table style="width:100%;">
@@ -150,7 +154,7 @@
 											<div class="upload-item upload-item-complete">
 												<div class="upload-item-row">
 													<div class="upload-item-container">
-														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem.file, "."))>
+														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[uploadProperty], "."))>
 															<div class="upload-item-image">
 																<img src="#getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path#">
 															</div>
@@ -166,7 +170,7 @@
 															<cfif len(stItem.title)>
 																#stItem.title#
 															<cfelse>
-																#listLast(stItem.file, "/")#
+																#listLast(stItem[uploadProperty], "/")#
 															</cfif> 
 														</div>
 													</div>
@@ -266,7 +270,7 @@
 						destinationpart: "#arguments.stMetadata.ftDestination#",
 						maxfiles: #ftMax#,
 						multipart_params: {
-							"acl" : "public-read",
+							"acl" : "#aclPermission#",
 							"key": "#fileUploadPath#/${filename}",
 							"name": "#fileUploadPath#/${filename}",
 							"filename": "#fileUploadPath#/${filename}",
@@ -283,8 +287,7 @@
 						filters: {
 							max_file_size : "#arguments.stMetadata.ftMaxSize#",
 							mime_types: [
-								{ title: "Images", extensions: "jpg,jpeg,png,gif" },
-								{ title: "Files", extensions: "pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi" }
+								{ title: "Files", extensions: "#arguments.stMetadata.ftAllowedFileExtensions#" }
 							]
 						},
 						fc: {
@@ -294,6 +297,7 @@
 							"objectid": "#arguments.stObject.objectid#",
 							"targetobjectid": "",
 							"property": "#arguments.stMetadata.name#",
+							"allow_edit": "#arguments.stMetadata.ftAllowEdit#",
 							"onFileUploaded": function(file,item) {
 								
 								//create a new object for the file
@@ -332,7 +336,7 @@
 									}
 								});	
 							},
-							"getItemTemplate": function(id, name, size, objectid) {
+							"getItemTemplate": function(id, name, size, objectid, bEdit) {
 
 								id = id || "";
 								name = name || "";
@@ -359,7 +363,7 @@
 									+ '    <div class="upload-item-state">'
 									+ '      <div class="upload-item-status">Waiting</div>'
 									+ '    </div>'
-									+ ' 	<div class="upload-item-buttons">'
+									+ ' 	<div class="upload-item-buttons btn-edit">'
 									+ ' 		<button Type="button" value="Edit" text="Edit" id="editAdded-' + id + '"><i class="fa fa-pencil-square-o"></i></button>'
 									+ ' 	</div>'
 									+ '    <div class="upload-item-buttons">'
@@ -374,6 +378,11 @@
 									+ '</li>'
 
 								);
+
+								if (bEdit !== true) {
+									item.find(".btn-edit").remove();
+								};
+
 								return item;
 							},
 							"onFileRemove": function(item,file,removeOnly) {
@@ -395,7 +404,7 @@
 										"removeOnly": removeOnly
 
 									},
-								 	success: function () {
+								 	success: function (result) {
 
 							 			//remove this objectid from hidden field
 										var aValues = $j("###arguments.fieldname#").val().split( "," );

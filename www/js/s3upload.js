@@ -319,7 +319,7 @@ function s3upload($, plupload, options) {
 		var item;
 		// get item template
 		if (options.fc.getItemTemplate) {
-			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size), options.fc.targetobjectid);
+			item = options.fc.getItemTemplate(file.id, file.name, plupload.formatSize(file.size), options.fc.targetobjectid,options.fc.allow_edit);
 		} else {
 			item = getItemTemplate(file.id, file.name, plupload.formatSize(file.size));
 		}
