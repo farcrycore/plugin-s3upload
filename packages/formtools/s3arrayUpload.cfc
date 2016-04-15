@@ -102,7 +102,7 @@
 			var thumbWidth = 80;
 			var thumbheight = 80;
 			var cropMethod = 'fitinside';
-			var format = '';
+			var format = 'jpg';
 
 			var buttonAddLabel = "Add Files";
 
@@ -159,30 +159,26 @@
 											<div class="upload-item upload-item-complete">
 												<div class="upload-item-row">
 													<div class="upload-item-container">
-														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[uploadProperty], "."))>
-															<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
-																<cfset var cdnLocation = getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
-																<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
-																	sourceURL=cdnLocation,
-																	cropParams={
-																		width:  "#thumbWidth#", 
-																		height: "#thumbheight#", 
-																		crop:   "#cropMethod#",
-																		format: "#format#"
-																	})>
-																	<div class="upload-item-image">
-																		<img src="#croppedThumbnail#" />
-																	</div>
-															<cfelse>
-																<div class="upload-item-nonimage" style="display:block;">
-																	<i class='fa fa-file-image-o'></i>
+														
+														<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
+															<cfset var cdnLocation = getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
+															<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
+																sourceURL=cdnLocation,
+																cropParams={
+																	width:  "#thumbWidth#", 
+																	height: "#thumbheight#", 
+																	crop:   "#cropMethod#",
+																	format: "#format#"
+																})>
+																<div class="upload-item-image">
+																	<img src="#croppedThumbnail#" />
 																</div>
-															</cfif>
-														<cfelse>											
+														<cfelse>
 															<div class="upload-item-nonimage" style="display:block;">
-																<i class='fa fa-file-text-o'></i>
+																<i class='fa fa-file-image-o'></i>
 															</div>
 														</cfif>
+														
 														<div class="upload-item-progress-bar"></div>
 													</div>
 													<div class="upload-item-info">
