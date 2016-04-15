@@ -118,7 +118,7 @@
 								<div class="upload-item-row">
 									<div class="upload-item-container">
 										<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(arguments.stMetadata.value, "."))>
-											<cfif NOT arguments.stMetadata.ftSecure>
+											<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
 												<cfset var cdnLocation = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
 												<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
 													sourceURL=cdnLocation,
@@ -128,9 +128,9 @@
 														crop: "#cropMethod#",
 														format: "#format#"
 													})>
-											<div class="upload-item-image">
-												<img src="#croppedThumbnail#" />
-											</div>
+												<div class="upload-item-image">
+													<img src="#croppedThumbnail#" />
+												</div>
 											<cfelse>
 												<div class="upload-item-nonimage" style="display:block;">
 													<i class='fa fa-file-image-o'></i>
