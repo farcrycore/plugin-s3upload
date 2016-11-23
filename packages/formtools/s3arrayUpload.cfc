@@ -4,6 +4,7 @@
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
+	<cfproperty name="ftLocation" default="" hint="Store files in a specific CDN location" />
 
 
 	<cffunction name="init" output="false">
@@ -44,8 +45,13 @@
 			var cdnLocation = "publicfiles";
 			var aclPermission = "public-read";
 
-			if (arguments.stMetadata.ftSecure) {
+			if (len(arguments.stMetadata.ftLocation)) {
+				cdnLocation = arguments.stMetadata.ftLocation;
+			}
+			 else if (arguments.stMetadata.ftSecure) {
 				cdnLocation = "privatefiles";
+			}
+			if (arguments.stMetadata.ftSecure) {
 				aclPermission = "private";
 			}
 
@@ -102,7 +108,7 @@
 			var thumbWidth = 80;
 			var thumbheight = 80;
 			var cropMethod = 'fitinside';
-			var format = 'jpg';
+			var format = '';
 
 			var buttonAddLabel = "Add Files";
 
@@ -160,10 +166,10 @@
 												<div class="upload-item-row">
 													<div class="upload-item-container">
 														
-														<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
-															<cfset var cdnLocation = getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
+														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[uploadProperty], ".")) AND NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
+															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
 															<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
-																sourceURL=cdnLocation,
+																file=cdnLocation,
 																cropParams={
 																	width:  "#thumbWidth#", 
 																	height: "#thumbheight#", 
@@ -395,7 +401,7 @@
 
 								);
 
-								if (bEdit !== true) {
+								if (bEdit !== true && bEdit !== "true") {
 									item.find(".btn-edit").remove();
 								};
 
