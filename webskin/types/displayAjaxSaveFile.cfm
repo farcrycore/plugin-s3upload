@@ -3,23 +3,29 @@
 <cfparam name="form.property" default="">
 <cfparam name="url.type" default="">
 
-<cfset stobj = application.fapi.getNewContentObject(typename=url.type,objectid=createUUID())>	
-<cfset stProps = application.stcoapi[stobj.typename].stprops>
+<cfimport taglib="/farcry/core/tags/formtools" prefix="ft" />
+<cfimport taglib="/farcry/core/tags/core" prefix="core" />
 
-<!--- find out the target property --->	
-<cfloop collection="#stProps#" item="targetProperty">
-	<cfif structkeyexists(stProps[targetProperty].metadata,"ftS3UploadTarget") AND stProps[targetProperty].metadata.ftS3UploadTarget>
-		<cfset stMetadata = application.fapi.getPropertyMetadata(typename=stobj.typename, property=targetProperty) />
-		<cfset stobj[targetProperty] = stMetadata.ftDestination&'/'&form.filename>
-	</cfif>
-</cfloop>
+<cfset stProps = application.stcoapi[url.type].stprops>
+<cfset targetProperty = application.formtools.s3arrayUpload.oFactory.getTargetProperty(stMetadata={ "ftJoin" = url.type }) />
 
-<cfset stobj['label'] = form.filename>
-<cfset stobj['title'] = form.filename>
-<cfset setData(stProperties=stobj)>
+<!--- find out the target property --->
+<cfset stNewObject = application.fapi.getNewContentObject(typename=url.type,objectid=createUUID()) />
+<cfset stNewObject["label"] = form.filename />
+<cfset stNewObject["title"] = form.filename />
+<cfset stNewObject[targetProperty] = stProps[targetProperty].metadata.ftDestination & '/' & form.filename />
+<cfif rEFindNoCase("\.(jpg|jpeg|png|gif)$", stNewObject[targetProperty]) and structKeyExists(application.formtools.image.oFactory, "uploadToCloudinary")>
+	<cfset stNewObject[targetProperty] = application.formtools.image.oFactory.uploadToCloudinary(stNewObject[targetProperty]) />
+</cfif>
+<cfset stResult = createFromUpload(stProperties=stNewObject, user=application.fapi.getCurrentUser().username, uploadfield=targetProperty) />
 
-<cfset result = {"objectid":"#stobj.objectid#"}>
+<cfset lEditFields = application.fapi.getContentTypeMetadata(typename=stNewObject.typename, md="bulkUploadEditFields", default="") />
+<cfif len(lEditFields)>
+	<cfsavecontent variable="editHTML"><cfoutput><h3>Edit #stNewObject.title#</h3></cfoutput><ft:object stObject="#stNewObject#" lFields="#lEditFields#" bIncludeFieldset="false" /></cfsavecontent>
+	<core:inHead variable="aHead" />
+<cfelse>
+	<cfset editHTML = "" />
+	<cfset aHead = [] />
+</cfif>
 
-<cfcontent reset="true">
-<cfheader name="Content-Type" value="application/json">
-<cfoutput>#serializeJSON(result)#</cfoutput>
+<cfset application.fapi.stream(content={ "objectid"=stResult.objectid, "edit_html"=editHTML, "htmlhead"=aHead }, type="json") />

@@ -1,10 +1,11 @@
 <cfcomponent displayname="S3 Array Upload" extends="farcry.core.packages.formtools.join" output="false">
 
-	<cfproperty name="ftAllowedFileExtensions" default="jpg,jpeg,png,gif,pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi">
-	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
-	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
-	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
-	<cfproperty name="ftLocation" default="" hint="Store files in a specific CDN location" />
+	<cfproperty name="ftAllowedFileExtensions" default="auto">
+	<cfproperty name="ftDestination" default="auto" hint="Destination of file store relative of secure/public locations. If set to 'auto', this value will be derived from the target property.">
+	<cfproperty name="ftMaxSize" default="auto" hint="Maximum filesize upload in bytes. If set to 'auto', this value will be derived from the target property.">
+	<cfproperty name="ftSecure" default="auto" hint="Store files securely outside of public webspace. If set to 'auto', this value will be derived from the target property.">
+	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
+	<cfproperty name="ftFileUploadSuccessCallback" default="" hint="JavaScript function that should be called when a file is successfully uploaded and saved as a record." />
 
 
 	<cffunction name="init" output="false">
@@ -21,6 +22,38 @@
 		<cfset var html = "">
 		<cfset var item = "">
 		<cfset var stActions = structNew() />
+		<cfset var targetType = arguments.stMetadata.ftJoin />
+		<cfset var targetProperty = getTargetProperty(stMetadata=arguments.stMetadata) />
+		<cfset var targetPropertyType = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftType") />
+		<cfset var ftAllowedFileExtensions = arguments.stMetadata.ftAllowedFileExtensions />
+		<cfset var ftDestination = arguments.stMetadata.ftDestination />
+		<cfset var ftMaxSize = arguments.stMetadata.ftMaxSize />
+		<cfset var ftSecure = arguments.stMetadata.ftSecure />
+
+		<cfif ftAllowedFileExtensions eq "auto">
+			<cfif targetPropertyType eq "file">
+				<cfset ftAllowedFileExtensions = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftAllowedFileExtensions") />
+			<cfelse>
+				<cfset ftAllowedFileExtensions = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftAllowedExtensions") />
+			</cfif>
+		</cfif>
+		<cfif ftDestination eq "auto">
+			<cfset ftDestination = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftDestination") />
+		</cfif>
+		<cfif ftSecure eq "auto">
+			<cfif targetPropertyType eq "file">
+				<cfset ftSecure = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSecure", default="false") />
+			<cfelse>
+				<cfset ftSecure = false />
+			</cfif>
+		</cfif>
+		<cfif ftMaxSize eq "auto">
+			<cfif targetPropertyType eq "file">
+				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftMaxSize") />
+			<cfelse>
+				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSizeLimit", default=104857600) />
+			</cfif>
+		</cfif>
 
 		<!--- SETUP stActions --->
 		<cfset stActions.ftAllowSelect = arguments.stMetadata.ftAllowSelect />
@@ -45,23 +78,26 @@
 			var cdnLocation = "publicfiles";
 			var aclPermission = "public-read";
 
-			if (len(arguments.stMetadata.ftLocation)) {
+			if (arguments.stMetadata.ftLocation neq "auto") {
 				cdnLocation = arguments.stMetadata.ftLocation;
 			}
-			 else if (arguments.stMetadata.ftSecure) {
+			else if (ftSecure) {
 				cdnLocation = "privatefiles";
 			}
-			if (arguments.stMetadata.ftSecure) {
+			else if (targetPropertyType eq "image") {
+				cdnLocation = "images";
+			}
+			if (ftSecure) {
 				aclPermission = "private";
 			}
 
 			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
-			cdnConfig.urlExpiry = 1800
+			cdnConfig.urlExpiry = 1800;
 
 			var utils = new s3.utils();
 			var awsSigning = new s3.awsSigning(cdnConfig.accessKeyID, cdnConfig.awsSecretKey, utils);
 
-			var fileUploadPath = "#cdnConfig.pathPrefix##arguments.stMetadata.ftDestination#";
+			var fileUploadPath = "#cdnConfig.pathPrefix##ftDestination#";
 			if (left(fileUploadPath, 1) == "/") {
 				fileUploadPath = mid(fileUploadPath, 2, len(fileUploadPath)-1);
 			}
@@ -92,8 +128,8 @@
 					[ "starts-with", "$name", "#fileUploadPath#" ]
 				]
 			};
-			if (arguments.stMetadata.ftMaxSize > 0) {
-				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("integer", arguments.stMetadata.ftMaxSize) ])
+			if (ftMaxSize > 0) {
+				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("integer", ftMaxSize) ])
 			}
 
 			var serializedPolicy = serializeJSON(policy);
@@ -142,20 +178,11 @@
 							<div id="#arguments.fieldname#-upload-dropzone" class="upload-dropzone" style="padding:0px;">
 								<cfset var counter = 0 />
 									<cfloop list="#joinItems#" index="i">
-										<cfset var uploadProperty = "">
 										<cfset counter = counter + 1 />
 										<cfset var stItem = application.fapi.getContentObject(objectid=i)>
 										<cfset var stProps = application.stcoapi[stItem.typename].stprops>
 
 										<!--- find out the target property --->	
-										<cfloop collection="#stProps#" item="targetProperty">
-											<cfif structkeyexists(stProps[targetProperty].metadata,"ftS3UploadTarget") AND stProps[targetProperty].metadata.ftS3UploadTarget>
-												<cfset var stItemMetadata = application.fapi.getPropertyMetadata(typename=stItem.typename, property=targetProperty) />
-												<cfset var uploadProperty = targetProperty>
-												<cfbreak>
-											</cfif>
-										</cfloop>
-
 										<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
 											<table style="width:100%;">
 											<tr>
@@ -166,8 +193,8 @@
 												<div class="upload-item-row">
 													<div class="upload-item-container">
 														
-														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[uploadProperty], ".")) AND NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
-															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=stItemMetadata).path>
+														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[targetProperty], ".")) AND NOT ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
+															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty)).path>
 															<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
 																file=cdnLocation,
 																cropParams={
@@ -192,7 +219,7 @@
 															<cfif len(stItem.title)>
 																#stItem.title#
 															<cfelse>
-																#listLast(stItem[uploadProperty], "/")#
+																#listLast(stItem[targetProperty], "/")#
 															</cfif> 
 														</div>
 													</div>
@@ -289,7 +316,7 @@
 						url : "#bucketEndpoint#",
 						fieldname: "#arguments.fieldname#",
 						uploadpath: "#fileUploadPath#",
-						destinationpart: "#arguments.stMetadata.ftDestination#",
+						destinationpart: "#ftDestination#",
 						maxfiles: #ftMax#,
 						multipart_params: {
 							"acl" : "#aclPermission#",
@@ -307,9 +334,9 @@
 							"X-Amz-SignedHeaders": "#params["X-Amz-SignedHeaders"]#"
 						},
 						filters: {
-							max_file_size : "#arguments.stMetadata.ftMaxSize#",
+							max_file_size : "#ftMaxSize#",
 							mime_types: [
-								{ title: "Files", extensions: "#arguments.stMetadata.ftAllowedFileExtensions#" }
+								{ title: "Files", extensions: "#ftAllowedFileExtensions#" }
 							]
 						},
 						fc: {
@@ -320,6 +347,7 @@
 							"targetobjectid": "",
 							"property": "#arguments.stMetadata.name#",
 							"allow_edit": "#arguments.stMetadata.ftAllowEdit#",
+							"allow_remove": "#arguments.stMetadata.ftAllowRemove#",
 							"onFileUploaded": function(file,item) {
 								
 								//create a new object for the file
@@ -351,6 +379,7 @@
 										$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
 										$listnode.attr("serialize", result.objectid);
 
+										<cfif len(arguments.stMetadata.ftFileUploadSuccessCallback)>#arguments.stMetadata.ftFileUploadSuccessCallback#(result);</cfif>
 									},
 									error: function() {
 										
@@ -358,7 +387,7 @@
 									}
 								});	
 							},
-							"getItemTemplate": function(id, name, size, objectid, bEdit) {
+							"getItemTemplate": function(id, name, size, objectid, bEdit, bRemove) {
 
 								id = id || "";
 								name = name || "";
@@ -404,6 +433,9 @@
 								if (bEdit !== true && bEdit !== "true") {
 									item.find(".btn-edit").remove();
 								};
+								if (bRemove !== true && bRemove !== "true") {
+									item.find(".upload-button-remove").remove();
+								};
 
 								return item;
 							},
@@ -438,7 +470,6 @@
 										} else {
 											$j("##arguments.fieldname" + "-container").addClass("upload-empty");
 										}
-
 									}
 								});	
 
@@ -487,6 +518,32 @@
 
 
 <!--- file formtool methods... --->
+	<cffunction name="getTargetProperty" access="public" output="false" returntype="string" hint="Returns the target property given the provided metadata">
+		<cfargument name="stMetadata" type="struct" required="true" />
+
+		<cfset var stProps = {} />
+		<cfset var thisprop = "" />
+
+		<cfif not len(arguments.stMetadata.ftJoin)>
+			<cfthrow message="No ftJoin attribute." />
+		</cfif>
+
+		<cfset stProps = application.stCOAPI[listFirst(arguments.stMetadata.ftJoin)].stProps />
+
+		<cfloop collection="#application.stCOAPI[arguments.stMetadata.ftJoin].stProps#" item="thisprop">
+			<cfif application.fapi.getPropertyMetadata(typename=arguments.stMetadata.ftJoin, property=thisprop, md="ftS3UploadTarget", default=false)>
+				<cfreturn thisprop />
+			</cfif>
+		</cfloop>
+
+		<cfloop collection="#application.stCOAPI[arguments.stMetadata.ftJoin].stProps#" item="thisprop">
+			<cfif application.fapi.getPropertyMetadata(typename=arguments.stMetadata.ftJoin, property=thisprop, md="ftBulkUploadTarget", default=false)>
+				<cfreturn thisprop />
+			</cfif>
+		</cfloop>
+
+		<cfthrow message="No target property was specified with a ftS3UploadTarget or ftBulkUploadTarget attribute." />
+	</cffunction>
 
 	<cffunction name="getFileLocation" access="public" output="false" returntype="struct" hint="Returns information used to access the file: type (stream | redirect), path (file system path | absolute URL), filename, mime type">
 		<cfargument name="objectid" type="string" required="false" default="" hint="Object to retrieve">
@@ -554,13 +611,23 @@
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
 		
 		<cfset var filepermission = false>
-		
+		<cfset var targetType = arguments.stMetadata.ftJoin />
+		<cfset var targetProperty = getTargetProperty(stMetadata=arguments.stMetadata) />
+		<cfset var targetPropertyType = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftType") />
+		<cfset var ftSecure = arguments.stMetadata.ftSecure />
+
+		<cfif ftSecure eq "auto">
+			<cfif targetPropertyType eq "file">
+				<cfset ftSecure = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSecure", default="false") />
+			<cfelse>
+				<cfset ftSecure = false />
+			</cfif>
+		</cfif>
 		
 		<cfimport taglib="/farcry/core/tags/security" prefix="sec">
 		
 		<sec:CheckPermission objectid="#arguments.stObject.objectid#" type="#arguments.stObject.typename#" permission="View" roles="Anonymous" result="filepermission" />
-		<cfparam name="arguments.stMetadata.ftSecure" default="false">
-		<cfif arguments.stMetadata.ftSecure eq "false" and (not structkeyexists(arguments.stObject,"status") or arguments.stObject.status eq "approved") and filepermission>
+		<cfif ftSecure eq "false" and (not structkeyexists(arguments.stObject,"status") or arguments.stObject.status eq "approved") and filepermission>
 			<cfreturn false>
 		<cfelse>
 			<cfreturn true>
