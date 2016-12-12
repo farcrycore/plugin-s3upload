@@ -4,6 +4,7 @@
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
+	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
 	<cfproperty name="ftS3UploadTarget" default="false" hint="Allow the property to be joined with array upload.">
 
 
@@ -28,8 +29,13 @@
 			var cdnLocation = "publicfiles";
 			var aclPermission = "public-read";
 
-			if (arguments.stMetadata.ftSecure) {
+			if (len(arguments.stMetadata.ftLocation)) {
+				cdnLocation = arguments.stMetadata.ftLocation;
+			}
+			else if (arguments.stMetadata.ftSecure) {
 				cdnLocation = "privatefiles";
+			}
+			if (arguments.stMetadata.ftSecure) {
 				aclPermission = "private";
 			}
 
