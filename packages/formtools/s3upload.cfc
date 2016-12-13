@@ -127,7 +127,7 @@
 										<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
 											<cfset var cdnLocation = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
 											<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
-												sourceURL=cdnLocation,
+												file=cdnLocation,
 												cropParams={
 													width: "#thumbWidth#", 
 													height: "#thumbheight#", 
