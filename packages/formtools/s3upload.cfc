@@ -345,7 +345,7 @@
 		
 		<cfset currentlocation = application.fc.lib.cdn.ioFindFile(locations="privatefiles,publicfiles",file=currentfilename)>
 		
-		<cfif not len(currentpath)>
+		<cfif not len(currentlocation)>
 			<cfreturn "">
 		</cfif>
 		
