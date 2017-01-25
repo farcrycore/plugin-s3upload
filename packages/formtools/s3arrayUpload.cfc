@@ -78,7 +78,7 @@
 			var cdnLocation = "publicfiles";
 			var aclPermission = "public-read";
 
-			if (arguments.stMetadata.ftLocation neq "auto") {
+			if (len(arguments.stMetadata.ftLocation) and arguments.stMetadata.ftLocation neq "auto") {
 				cdnLocation = arguments.stMetadata.ftLocation;
 			}
 			else if (ftSecure) {

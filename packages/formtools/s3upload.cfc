@@ -29,7 +29,7 @@
 			var cdnLocation = "publicfiles";
 			var aclPermission = "public-read";
 
-			if (len(arguments.stMetadata.ftLocation)) {
+			if (len(arguments.stMetadata.ftLocation) and arguments.stMetadata.ftLocation neq "auto") {
 				cdnLocation = arguments.stMetadata.ftLocation;
 			}
 			else if (arguments.stMetadata.ftSecure) {
