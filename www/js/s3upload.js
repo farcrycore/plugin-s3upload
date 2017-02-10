@@ -113,7 +113,15 @@ function s3upload($, plupload, options) {
 			alert("The file '" + file.name + "' is too large.\nPlease upload a file smaller than " + (Math.round(uploader.settings.filters.max_file_size/1024/1024*10) / 10).toFixed(1) + " MB.");
 		}
 		if (evt.code == -601) {
-			alert("The file '" + file.name + "' is not in the list of allowed file extensions.");
+			// get allowed file extensions
+			var fileExtensions = "";
+			for (i = 0; i < uploader.settings.filters.mime_types.length; i++) { 
+				if (uploader.settings.filters.mime_types[i].title == 'Files') {
+					fileExtensions = uploader.settings.filters.mime_types[i].extensions;
+				}
+			}
+
+			alert("The file '" + file.name + "' is not in the list of allowed file extensions["+fileExtensions+"].");
 		}
 
 		// update item status
