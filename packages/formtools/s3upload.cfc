@@ -196,6 +196,7 @@
 						url : "#bucketEndpoint#",
 						fieldname: "#arguments.fieldname#",
 						uploadpath: "#fileUploadPath#",
+						location: "#cdnLocation#",
 						destinationpart: "#arguments.stMetadata.ftDestination#",
 						maxfiles: #ftMax#,
 						multipart_params: {

@@ -208,7 +208,8 @@ function s3upload($, plupload, options) {
 			dataType: "json",
 			data: {
 				"filename": sanitiseFilename(file.name),
-				"uploadpath": options.uploadpath
+				"uploadpath": options.uploadpath,
+				"location": options.location
 			},
 			success: function(response) {
 

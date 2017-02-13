@@ -1,13 +1,14 @@
 <cfparam name="form.filename" type="string">
 <cfparam name="form.uploadpath" type="string">
+<cfparam name="form.location" type="string" default="publicfiles">
 
 <cfset pathWithoutCDNPrefix = form.uploadpath>
-<cfset cdnConfig = application.fc.lib.cdn.getLocation("publicfiles")>
+<cfset cdnConfig = application.fc.lib.cdn.getLocation("#form.location#")>
 <cfif len(cdnConfig.pathPrefix)>
 	<cfset pathWithoutCDNPrefix = replace("/#form.uploadpath#", cdnConfig.pathPrefix, "")>
 </cfif>
 
-<cfset uniquefilename = application.fc.lib.cdn.ioGetUniqueFilename("publicfiles", "#pathWithoutCDNPrefix#/#form.filename#")>
+<cfset uniquefilename = application.fc.lib.cdn.ioGetUniqueFilename("#form.location#", "#pathWithoutCDNPrefix#/#form.filename#")>
 
 <cfset result = {
 	"filename": "#form.filename#",
