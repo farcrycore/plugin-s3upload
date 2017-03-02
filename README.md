@@ -10,3 +10,9 @@ plugin is intended as a stop gap alternative until then.
 
 It makes use of the signing and utils portion of the `aws-cfml` library from:
 https://github.com/jcberquist/aws-cfml
+
+## Setup
+
+The project must be using S3 for all file storage.
+
+The S3 bucket CORS policy must allow GET and POST for the website domain.
