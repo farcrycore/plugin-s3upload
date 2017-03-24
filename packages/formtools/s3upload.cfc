@@ -27,6 +27,7 @@
 
 		<cfscript>
 			var cdnLocation = "publicfiles";
+			var cdnPath = "";
 			var aclPermission = "public-read";
 
 			if (len(arguments.stMetadata.ftLocation) and arguments.stMetadata.ftLocation neq "auto") {
@@ -125,9 +126,9 @@
 									<div class="upload-item-container">
 										
 										<cfif NOT arguments.stMetadata.ftSecure AND structKeyExists(application.fc.lib, "cloudinary") and len(arguments.stMetadata.value)>
-											<cfset var cdnLocation = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
+											<cfset var cdnPath = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
 											<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
-												file=cdnLocation,
+												file=cdnPath,
 												cropParams={
 													width: "#thumbWidth#", 
 													height: "#thumbheight#", 
@@ -225,6 +226,31 @@
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
 							"property": "#arguments.stMetadata.name#"
+							<cfif cdnLocation eq "images">
+								, "onFileUploaded" : function(file,item) {
+									if (window.$fc !== undefined && window.$fc.imageformtool !== undefined) {
+										$j($fc.imageformtool(
+											"#left(arguments.fieldname,len(arguments.fieldname)-len(arguments.stMetadata.name))#",
+											"#arguments.stMetadata.name#"
+										)).trigger("filechange", [{
+											value : "#arguments.stMetadata.ftDestination#/" + file.name,
+											filename : file.name,
+											fullpath : "#bucketEndpoint#/" + file.name,
+											width : file.width,
+											height : file.height,
+											size : file.size
+										}]);
+									}
+								},
+								"onFileRemove" : function(item,file,removeOnly) {
+									if (window.$fc !== undefined && window.$fc.imageformtool !== undefined) {
+										$j($fc.imageformtool(
+											"#left(arguments.fieldname,len(arguments.fieldname)-len(arguments.stMetadata.name))#",
+											"#arguments.stMetadata.name#"
+										)).trigger("deleteall");
+									}
+								}
+							</cfif>
 						}	
 					});
 				</script>
@@ -275,14 +301,14 @@
 			<cfreturn stResult>
 		</cfif>
 
-		<cfif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
+		<cfif structKeyExists(arguments.stMetadata, "ftLocation") and arguments.stMetadata.ftLocation eq "images">
+			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="images",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
+		<cfelseif structKeyExists(arguments.stMetadata, "ftLocation") and len(arguments.stMetadata.ftLocation)>
+			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location=arguments.stMetadata.ftLocation,file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
+		<cfelseif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="privatefiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-		
-
 		<cfelse>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="publicfiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-
-
 		</cfif>
 		
 		<cfreturn stResult>

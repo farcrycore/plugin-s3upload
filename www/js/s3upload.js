@@ -339,6 +339,8 @@ function s3upload($, plupload, options) {
 			var image = $(new Image());
 			var preview = new mOxie.Image();
 			preview.onload = function() {
+				file.width = preview.width;
+				file.height = preview.height;
 				preview.downsize(300, 300);
 				image.prop("src", preview.getAsDataURL());
 			};
