@@ -197,7 +197,6 @@ function s3upload($, plupload, options) {
 	}
 
 	function onPluploadBeforeUpload(uploader, file) {
-
 		var ajaxurl = options.fc.webroot + "&type=" + options.fc.typename + "&objectid=" + options.fc.objectid
 					+ "&property=" + options.fc.property + "&view=displayAjaxCDNUniqueFilename";
 
@@ -412,6 +411,10 @@ function s3upload($, plupload, options) {
 			return("image/png");
 		} else if (/\.gif/i.test(name)) {
 			return("image/gif");
+		} else if (/\.pdf/i.test(name)) {
+			return("application/pdf");
+		} else if (/\.epub/i.test(name)) {
+			return("application/epub+zip");
 		}
 
 		return("application/octet-stream");
