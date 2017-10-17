@@ -6,7 +6,7 @@
 	<cfproperty name="ftSecure" default="auto" hint="Store files securely outside of public webspace. If set to 'auto', this value will be derived from the target property.">
 	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
 	<cfproperty name="ftFileUploadSuccessCallback" default="" hint="JavaScript function that should be called when a file is successfully uploaded and saved as a record." />
-
+	<cfproperty name="ftThumbnailImage" default="" hint="property name that contains image that can be used as thumbnail. 80px x 80px" />
 
 	<cffunction name="init" output="false">
 		<cfreturn this>
@@ -206,10 +206,16 @@
 																<div class="upload-item-image">
 																	<img src="#croppedThumbnail#" />
 																</div>
+														<cfelseif arguments.stMetadata.ftThumbnailImage !=''>
+															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
+															<div class="upload-item-image">
+																<img src="#cdnLocation#" height="80" width="80" />
+															</div>
 														<cfelse>
 															<div class="upload-item-nonimage" style="display:block;">
 																<i class='fa fa-file-image-o'></i>
 															</div>
+
 														</cfif>
 														
 														<div class="upload-item-progress-bar"></div>
