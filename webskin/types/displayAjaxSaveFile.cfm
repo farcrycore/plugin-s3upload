@@ -17,7 +17,13 @@
 <cfif rEFindNoCase("\.(jpg|jpeg|png|gif)$", stNewObject[targetProperty]) and structKeyExists(application.formtools.image.oFactory, "uploadToCloudinary")>
 	<cfset stNewObject[targetProperty] = application.formtools.image.oFactory.uploadToCloudinary(stNewObject[targetProperty]) />
 </cfif>
-<cfset stResult = createFromUpload(stProperties=stNewObject, user=application.fapi.getCurrentUser().username, uploadfield=targetProperty) />
+
+<cfif application.fapi.isLoggedIn()>
+	<cfset username = application.fapi.getCurrentUser().username>
+<cfelse>
+	<cfset username = "anonymous">
+</cfif>
+<cfset stResult = createFromUpload(stProperties=stNewObject, user=username, uploadfield=targetProperty) />
 
 <cfset lEditFields = application.fapi.getContentTypeMetadata(typename=stNewObject.typename, md="bulkUploadEditFields", default="") />
 <cfif len(lEditFields)>
