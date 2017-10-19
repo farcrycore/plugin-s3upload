@@ -207,9 +207,9 @@
 																	<img src="#croppedThumbnail#" />
 																</div>
 														<cfelseif arguments.stMetadata.ftThumbnailImage !=''>
-															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
+															<cfset var thumbLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
 															<div class="upload-item-image">
-																<img src="#cdnLocation#" height="80" width="80" />
+																<img src="#thumbLocation#" height="80" width="80" />
 															</div>
 														<cfelse>
 															<div class="upload-item-nonimage" style="display:block;">
