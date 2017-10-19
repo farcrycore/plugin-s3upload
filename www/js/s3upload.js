@@ -197,8 +197,11 @@ function s3upload($, plupload, options) {
 	}
 
 	function onPluploadBeforeUpload(uploader, file) {
-		var ajaxurl = options.fc.webroot + "&type=" + options.fc.typename + "&objectid=" + options.fc.objectid
-					+ "&property=" + options.fc.property + "&view=displayAjaxCDNUniqueFilename";
+		// AJM 
+		// var ajaxurl = options.fc.webroot + "&type=" + options.fc.typename + "&objectid=" + options.fc.objectid
+		//			+ "&property=" + options.fc.property + "&view=displayAjaxCDNUniqueFilename";
+		
+		var ajaxurl = options.fc.webroot  +  "&view=displayAjaxCDNUniqueFilename";
 
 		// get unique filename from the server
 		$.ajax({
