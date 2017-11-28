@@ -6,7 +6,7 @@
 	<cfproperty name="ftSecure" default="auto" hint="Store files securely outside of public webspace. If set to 'auto', this value will be derived from the target property.">
 	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
 	<cfproperty name="ftFileUploadSuccessCallback" default="" hint="JavaScript function that should be called when a file is successfully uploaded and saved as a record." />
-	<cfproperty name="ftThumbnailImage" default="" hint="property name that contains image that can be used as thumbnail. 80px x 80px" />
+
 
 	<cffunction name="init" output="false">
 		<cfreturn this>
@@ -30,29 +30,42 @@
 		<cfset var ftMaxSize = arguments.stMetadata.ftMaxSize />
 		<cfset var ftSecure = arguments.stMetadata.ftSecure />
 
-		<cfif ftAllowedFileExtensions eq "auto">
-			<cfif targetPropertyType eq "file">
+		<cfif targetPropertyType eq "s3upload">
+			<cfif arguments.stMetadata.ftLocation eq "auto">
+				<cfset arguments.stMetadata.ftLocation = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftLocation") />
+			</cfif>
+			<cfif ftAllowedFileExtensions eq "auto">
 				<cfset ftAllowedFileExtensions = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftAllowedFileExtensions") />
-			<cfelse>
+			</cfif>
+			<cfif ftSecure eq "auto">
+				<cfset ftSecure = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSecure", default="false") />
+			</cfif>
+			<cfif ftMaxSize eq "auto">
+				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftMaxSize") />
+			</cfif>
+		<cfelseif targetPropertyType eq "file">
+			<cfif ftAllowedFileExtensions eq "auto">
+				<cfset ftAllowedFileExtensions = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftAllowedFileExtensions") />
+			</cfif>
+			<cfif ftSecure eq "auto">
+				<cfset ftSecure = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSecure", default="false") />
+			</cfif>
+			<cfif ftMaxSize eq "auto">
+				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftMaxSize") />
+			</cfif>
+		<cfelse>
+			<cfif ftAllowedFileExtensions eq "auto">
 				<cfset ftAllowedFileExtensions = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftAllowedExtensions") />
+			</cfif>
+			<cfif ftSecure eq "auto">
+				<cfset ftSecure = false />
+			</cfif>
+			<cfif ftMaxSize eq "auto">
+				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSizeLimit", default=104857600) />
 			</cfif>
 		</cfif>
 		<cfif ftDestination eq "auto">
 			<cfset ftDestination = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftDestination") />
-		</cfif>
-		<cfif ftSecure eq "auto">
-			<cfif targetPropertyType eq "file">
-				<cfset ftSecure = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSecure", default="false") />
-			<cfelse>
-				<cfset ftSecure = false />
-			</cfif>
-		</cfif>
-		<cfif ftMaxSize eq "auto">
-			<cfif targetPropertyType eq "file">
-				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftMaxSize") />
-			<cfelse>
-				<cfset ftMaxSize = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftSizeLimit", default=104857600) />
-			</cfif>
 		</cfif>
 
 		<!--- SETUP stActions --->
@@ -60,7 +73,7 @@
 		<cfset stActions.ftAllowCreate = arguments.stMetadata.ftAllowCreate />
 		<cfset stActions.ftAllowEdit = arguments.stMetadata.ftAllowEdit />
 		<cfset stActions.ftRemoveType = arguments.stMetadata.ftRemoveType />
-		
+
 		<cfif structKeyExists(arguments.stMetadata, "ftAllowAttach")>
 			<cfset stActions.ftAllowSelect = arguments.stMetadata.ftAllowAttach />
 		</cfif>
@@ -105,7 +118,7 @@
 			var isoTime = utils.iso8601();
 			var expiry = cdnConfig.urlExpiry;
 
-			var params = awsSigning.getAuthorizationParams( "s3", "ap-southeast-2", isoTime );
+			var params = awsSigning.getAuthorizationParams( "s3", cdnConfig.region, isoTime );
 			params[ 'X-Amz-SignedHeaders' ] = 'host';
 
 			// create policy and add the encoded policy to the query params
@@ -122,22 +135,22 @@
 					{ "bucket": "#cdnConfig.bucket#" },
 					[ "starts-with", "$key", "#fileUploadPath#" ],
 
-					{ "success_action_status": javaCast("string", "201") },
+					{ "success_action_status": "2xx" }, // this is necessary for CF, because it is serializing this as a string
 					[ "starts-with", "$Content-Type", "" ],
 					[ "starts-with", "$filename", "#fileUploadPath#" ],
 					[ "starts-with", "$name", "#fileUploadPath#" ]
 				]
 			};
 			if (ftMaxSize > 0) {
-				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("integer", ftMaxSize) ])
+				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("int", ftMaxSize) ]);
 			}
 
-			var serializedPolicy = serializeJSON(policy);
+			var serializedPolicy = replace(serializeJSON(policy), "2xx", "201");  // this is necessary for CF, because it is serializing success_action_status as a string
 			serializedPolicy = reReplace(serializedPolicy, "[\r\n]+", "", "all");
 			params[ 'Policy' ] = binaryEncode(charsetDecode(serializedPolicy, "utf-8"), "base64");
-			params[ 'X-Amz-Signature' ] = awsSigning.sign( isoTime.left( 8 ), "ap-southeast-2", "s3", params[ 'Policy' ] );
+			params[ 'X-Amz-Signature' ] = awsSigning.sign( isoTime.left( 8 ), cdnConfig.region, "s3", params[ 'Policy' ] );
 
-			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#cdnConfig.bucket#";
+			var bucketEndpoint = "https://s3" & (cdnConfig.region eq "us-east-1" ? "" : "-" & cdnConfig.region) & ".amazonaws.com/#cdnConfig.bucket#";
 
 			var ftMin = 0;
 			var ftMax = 50;
@@ -148,11 +161,11 @@
 
 			var buttonAddLabel = "Add Files";
 
-// TODO: for mobile / responsive there should be no mention of drag/drop 
+// TODO: for mobile / responsive there should be no mention of drag/drop
 			var placeholderAddLabel = """#buttonAddLabel#"" or drag and drop here";
 
 		</cfscript>
-		
+
 		<skin:loadJS id="fc-jquery-ui" />
 		<skin:loadJS id="s3uploadJS" />
 		<skin:loadCSS id="s3uploadCSS" />
@@ -164,8 +177,8 @@
 
 				<!--- UPLOADER UI --->
 				<div class="multiField">
-					<ul id="join-#stObject.objectid#-#arguments.stMetadata.name#" 
-						class="arrayDetailView" 
+					<ul id="join-#stObject.objectid#-#arguments.stMetadata.name#"
+						class="arrayDetailView"
 						style="list-style-type:none;border-bottom:1px solid ##ebebeb;border-width:1px 1px 0px 1px;margin:0px;">
 
 						<div id="#arguments.fieldname#-container" class="s3upload upload-empty" style="padding-top:10px;">
@@ -182,7 +195,7 @@
 										<cfset var stItem = application.fapi.getContentObject(objectid=i)>
 										<cfset var stProps = application.stcoapi[stItem.typename].stprops>
 
-										<!--- find out the target property --->	
+										<!--- find out the target property --->
 										<li id="join-item-#arguments.stMetadata.name#-#i#" class="sort #iif(counter mod 2,de('oddrow'),de('evenrow'))#" serialize="#i#" style="border:1px solid ##ebebeb;padding:5px;zoom:1;">
 											<table style="width:100%;">
 											<tr>
@@ -192,14 +205,14 @@
 											<div class="upload-item upload-item-complete">
 												<div class="upload-item-row">
 													<div class="upload-item-container">
-														
+
 														<cfif listFindNoCase("jpg,jpeg,png,gif", listLast(stItem[targetProperty], ".")) AND NOT ftSecure AND structKeyExists(application.fc.lib, "cloudinary")>
 															<cfset var cdnLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty)).path>
 															<cfset var croppedThumbnail = application.fc.lib.cloudinary.fetch(
 																file=cdnLocation,
 																cropParams={
-																	width:  "#thumbWidth#", 
-																	height: "#thumbheight#", 
+																	width:  "#thumbWidth#",
+																	height: "#thumbheight#",
 																	crop:   "#cropMethod#",
 																	format: "#format#"
 																})>
@@ -207,17 +220,16 @@
 																	<img src="#croppedThumbnail#" />
 																</div>
 														<cfelseif arguments.stMetadata.ftThumbnailImage !=''>
-															<cfset var thumbLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
-															<div class="upload-item-image">
-																<img src="#thumbLocation#" height="80" width="80" />
-															</div>
+                                                                                                                       <cfset var thumbLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
+                                                                                                                       <div class="upload-item-image">
+                                                                                                                               <img src="#thumbLocation#" height="80" width="80" />
+                                                                                                                       </div>
 														<cfelse>
 															<div class="upload-item-nonimage" style="display:block;">
 																<i class='fa fa-file-image-o'></i>
 															</div>
-
 														</cfif>
-														
+
 														<div class="upload-item-progress-bar"></div>
 													</div>
 													<div class="upload-item-info">
@@ -226,7 +238,7 @@
 																#stItem.title#
 															<cfelse>
 																#listLast(stItem[targetProperty], "/")#
-															</cfif> 
+															</cfif>
 														</div>
 													</div>
 													<div class="upload-item-state"></div>
@@ -246,16 +258,16 @@
 														</cfif>
 													</div>
 												</div>
-											</div>	
+											</div>
 
 											</td>
 											<td class="" style="padding:3px;white-space:nowrap;"></td>
 											</tr>
 											</table>
 
-										</li>		 					
+										</li>
 									</cfloop>
-								
+
 								</div>
 
 							<div style="border:none; text-align:left;" class="buttonHolder form-actions">
@@ -356,7 +368,7 @@
 							"allow_edit": "#arguments.stMetadata.ftAllowEdit#",
 							"allow_remove": "#arguments.stMetadata.ftAllowRemove#",
 							"onFileUploaded": function(file,item) {
-								
+
 								//create a new object for the file
 								$j.ajax({
 									dataType: "json",
@@ -389,10 +401,10 @@
 										<cfif len(arguments.stMetadata.ftFileUploadSuccessCallback)>#arguments.stMetadata.ftFileUploadSuccessCallback#(result);</cfif>
 									},
 									error: function() {
-										
+
 							 			$j('##' + file.id).removeClass("upload-item-complete").addClass("upload-item-error").find(".upload-item-status").text("Error");
 									}
-								});	
+								});
 							},
 							"getItemTemplate": function(id, name, size, objectid, bEdit, bRemove) {
 
@@ -456,7 +468,7 @@
 									dataType: "json",
 									type: 'POST',
 									cache: false,
-						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1' 
+						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1'
 								 		 + '&objectid=' + objectid
 								 		 + '&view=displayAjaxDeleteFile',
 								 	data: {
@@ -478,12 +490,12 @@
 											$j("##arguments.fieldname" + "-container").addClass("upload-empty");
 										}
 									}
-								});	
+								});
 
 							}
 
 						}
-					
+
            		 });
 				</script>
 
@@ -501,7 +513,7 @@
 		<cfif structKeyExists(request, "hideLibraryWrapper") AND request.hideLibraryWrapper>
 			<cfreturn "#html#" />
 		<cfelse>
-			<cfreturn "<div id='#arguments.fieldname#-library-wrapper'>#html#</div>" />	
+			<cfreturn "<div id='#arguments.fieldname#-library-wrapper'>#html#</div>" />
 		</cfif>
 
 	</cffunction>
@@ -511,13 +523,13 @@
 		<cfargument name="stObject" required="true" type="struct" hint="The object of the record that this field is part of.">
 		<cfargument name="stMetadata" required="true" type="struct" hint="This is the metadata that is either setup as part of the type.cfc or overridden when calling ft:object by using the stMetadata argument.">
 		<cfargument name="fieldname" required="true" type="string" hint="This is the name that will be used for the form field. It includes the prefix that will be used by ft:processform.">
-	
+
 		<cfset var html = "">
-	
+
 		<cfsavecontent variable="html">
 			<cfoutput><a target="_blank" href="#application.url.webroot#/download.cfm?downloadfile=#arguments.stobject.objectid#&typename=#arguments.typename#&fieldname=#arguments.stmetadata.name#">#listLast(arguments.stMetadata.value,"/")#</a></cfoutput>
 		</cfsavecontent>
-		
+
 		<cfreturn html>
 	</cffunction>
 
@@ -557,13 +569,13 @@
 		<cfargument name="typename" type="string" required="false" default="" hint="Type of the object to retrieve">
 		<!--- OR --->
 		<cfargument name="stObject" type="struct" required="false" hint="Provides the object">
-		
+
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
 		<cfargument name="firstLook" type="string" required="false" hint="Where should we look for the file first. The default is to look based on permissions and status">
 		<cfargument name="bRetrieve" type="boolean" required="false" default="true">
 
 		<cfset var stResult = structnew()>
-		
+
 		<!--- Throw an error if the field is empty --->
 		<cfif NOT len(arguments.stObject[arguments.stMetadata.name])>
 			<cfset stResult = structnew()>
@@ -572,34 +584,34 @@
 			<cfset stResult.error = "No file defined">
 			<cfreturn stResult>
 		</cfif>
-		
+
 		<cfif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="privatefiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
 		<cfelse>
 			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="publicfiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
 		</cfif>
-		
+
 		<cfreturn stResult>
 	</cffunction>
-	
+
 	<cffunction name="checkFileLocation" access="public" output="false" returntype="struct" hint="Checks that the location of the specified file is correct (i.e. privatefiles vs publicfiles)">
 		<cfargument name="objectid" type="string" required="false" default="" hint="Object to retrieve">
 		<cfargument name="typename" type="string" required="false" default="" hint="Type of the object to retrieve">
 		<!--- OR --->
 		<cfargument name="stObject" type="struct" required="false" hint="Provides the object">
-		
+
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
-		
-		
+
+
 		<cfset var stResult = structnew()>
-		
+
 		<!--- Throw an error if the field is empty --->
 		<cfif NOT len(arguments.stObject[arguments.stMetadata.name])>
 			<cfset stResult = structnew()>
 			<cfset stResult.error = "No file defined">
 			<cfreturn stResult>
 		</cfif>
-		
+
 		<cfif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
 			<cfset stResult.correctlocation = "privatefiles">
 			<cfset stResult.currentlocation = application.fc.lib.cdn.ioFindFile(locations="privatefiles,publicfiles",file=arguments.stObject[arguments.stMetadata.name])>
@@ -607,16 +619,16 @@
 			<cfset stResult.correctlocation = "publicfiles">
 			<cfset stResult.currentlocation = application.fc.lib.cdn.ioFindFile(locations="publicfiles,privatefiles",file=arguments.stObject[arguments.stMetadata.name])>
 		</cfif>
-		
+
 		<cfset stResult.correct = stResult.correctlocation eq stResult.currentlocation>
-		
+
 		<cfreturn stResult>
 	</cffunction>
-	
+
 	<cffunction name="isSecured" access="private" output="false" returntype="boolean" hint="Encapsulates the security check on the file">
 		<cfargument name="stObject" type="struct" required="false" hint="Provides the object">
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
-		
+
 		<cfset var filepermission = false>
 		<cfset var targetType = arguments.stMetadata.ftJoin />
 		<cfset var targetProperty = getTargetProperty(stMetadata=arguments.stMetadata) />
@@ -630,9 +642,9 @@
 				<cfset ftSecure = false />
 			</cfif>
 		</cfif>
-		
+
 		<cfimport taglib="/farcry/core/tags/security" prefix="sec">
-		
+
 		<sec:CheckPermission objectid="#arguments.stObject.objectid#" type="#arguments.stObject.typename#" permission="View" roles="Anonymous" result="filepermission" />
 		<cfif ftSecure eq "false" and (not structkeyexists(arguments.stObject,"status") or arguments.stObject.status eq "approved") and filepermission>
 			<cfreturn false>
@@ -640,24 +652,24 @@
 			<cfreturn true>
 		</cfif>
 	</cffunction>
-	
+
 	<cffunction name="duplicateFile" access="public" output="false" returntype="string" hint="For use with duplicateObject, copies the associated file and returns the new unique filename">
 		<cfargument name="stObject" type="struct" required="false" hint="Provides the object">
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
-		
+
 		<cfset var currentfilename = arguments.stObject[arguments.stMetadata.name]>
 		<cfset var currentlocation = "">
-		
+
 		<cfif not len(currentfilename)>
 			<cfreturn "">
 		</cfif>
-		
+
 		<cfset currentlocation = application.fc.lib.cdn.ioFindFile(locations="privatefiles,publicfiles",file=currentfilename)>
-		
+
 		<cfif not len(currentpath)>
 			<cfreturn "">
 		</cfif>
-		
+
 		<cfif isSecured(arguments.stObject,arguments.stMetadata)>
 			<cfreturn application.fc.lib.cdn.ioCopyFile(source_location=currentlocation,source_file=currentfilename,dest_location="privatefiles",dest_file=newfilename,nameconflict="makeunique",uniqueamong="privatefiles,publicfiles")>
 		<cfelse>
@@ -665,4 +677,4 @@
 		</cfif>
 	</cffunction>
 
-</cfcomponent> 
+</cfcomponent>
