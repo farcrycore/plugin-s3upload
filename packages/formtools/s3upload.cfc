@@ -2,6 +2,8 @@
 
 	<cfproperty name="ftAllowedFileExtensions" default="jpg,jpeg,png,gif,pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi">
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
+	<cfproperty name="ftMax" default="1" hint="Maximum number of allowed files to upload.">
+	<cfproperty name="ftMaxHeight" default="0" hint="Maximum height of the upload drop zone in pixels.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
 	<cfproperty name="ftSecure" default="false" hint="Store files securely outside of public webspace.">
 	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
@@ -89,7 +91,7 @@
 			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#cdnConfig.bucket#";
 
 			var ftMin = 0;
-			var ftMax = 1;
+			var ftMax = arguments.stMetadata.ftMax;
 			var thumbWidth = 80;
 			var thumbheight = 80;
 			var cropMethod = 'fitinside';
@@ -106,6 +108,17 @@
 
 		<skin:loadJS id="s3uploadJS" />
 		<skin:loadCSS id="s3uploadCSS" />
+
+		<cfif arguments.stMetadata.ftMaxHeight gt 0>
+			<cfoutput>
+			<style type="text/css">
+				###arguments.fieldname#-upload-dropzone {
+					max-height: #arguments.stMetadata.ftMaxHeight#px;
+					overflow-y: auto;
+				}
+			</style>
+			</cfoutput>
+		</cfif>
 
 		<cfsavecontent variable="html">
 			<cfoutput>
