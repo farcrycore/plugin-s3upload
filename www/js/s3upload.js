@@ -5,6 +5,7 @@ function s3upload($, plupload, options) {
 	options.fieldname = options.fieldname || "";
 	options.uploadpath = options.uploadpath || "";
 	options.destinationpart = options.destinationpart || "";
+	options.nameconflict = options.nameconflict || "makeunique";
 	options.maxfiles = options.maxfiles || 20;
 	options.multipart_params = options.multipart_params || {};
 	options.filters = options.filters || {};
@@ -206,6 +207,7 @@ function s3upload($, plupload, options) {
 			dataType: "json",
 			data: {
 				"filename": sanitiseFilename(file.name),
+				"nameconflict": options.nameconflict,
 				"uploadpath": options.uploadpath,
 				"location": options.location
 			},

@@ -2,6 +2,7 @@
 
 	<cfproperty name="ftAllowedFileExtensions" default="jpg,jpeg,png,gif,pdf,doc,ppt,xls,docx,pptx,xlsx,zip,rar,mp3,mp4,m4v,avi">
 	<cfproperty name="ftDestination" default="" hint="Destination of file store relative of secure/public locations.">
+	<cfproperty name="ftNameConflict" default="makeunique" hint="Strategy for resolving file name conflicts; makeunique | overwrite">
 	<cfproperty name="ftMax" default="1" hint="Maximum number of allowed files to upload.">
 	<cfproperty name="ftMaxHeight" default="0" hint="Maximum height of the upload drop zone in pixels.">
 	<cfproperty name="ftMaxSize" default="104857600" hint="Maximum filesize upload in bytes.">
@@ -212,6 +213,7 @@
 						uploadpath: "#fileUploadPath#",
 						location: "#cdnLocation#",
 						destinationpart: "#arguments.stMetadata.ftDestination#",
+						nameconflict: "#arguments.stMetadata.ftNameConflict#",
 						maxfiles: #ftMax#,
 						multipart_params: {
 							"acl" : "#aclPermission#",
