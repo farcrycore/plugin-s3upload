@@ -229,7 +229,9 @@ function s3upload($, plupload, options) {
 				uploader.trigger("UploadFile", file);
 
 			},
-			error: function() {
+			error: function(error) {
+				console.log('onPluploadBeforeUpload', error);
+				var item = $dropzone.find("#" + file.id);
 				item.removeClass("upload-item-uploading").addClass("upload-item-error").find(".upload-item-status").text("Error");
 			}
 		});
