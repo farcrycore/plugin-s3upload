@@ -15,6 +15,39 @@
 		<cfreturn this>
 	</cffunction>
 
+	<!--- Resolve "automatic" or implied configuration to actual values --->
+	<cffunction name="resolveLocationConfiguration" access="public" output="true" returntype="struct">
+		<cfargument name="stMetadata" required="true" type="struct" hint="This is the metadata that is either setup as part of the type.cfc or overridden when calling ft:object by using the stMetadata argument.">
+		
+		<cfset var cdnLocation = "publicfiles" />
+		<cfset var cdnPath = "" />
+		<cfset var aclPermission = "public-read" />
+
+		<cfif len(arguments.stMetadata.ftLocation) and arguments.stMetadata.ftLocation neq "auto">
+			<cfset cdnLocation = arguments.stMetadata.ftLocation />
+		<cfelseif arguments.stMetadata.ftSecure>
+			<cfset cdnLocation = "privatefiles" />
+		</cfif>
+		<cfif arguments.stMetadata.ftSecure>
+			<cfset aclPermission = "private" />
+		</cfif>
+
+		<cfset var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation) />
+		<cfset cdnConfig.urlExpiry = 1800 />
+
+		<cfset var fileUploadPath = "#cdnConfig.pathPrefix##arguments.stMetadata.ftDestination#" />
+		<cfif left(fileUploadPath, 1) == "/">
+			<cfset fileUploadPath = mid(fileUploadPath, 2, len(fileUploadPath)-1) />
+		</cfif>
+
+		<cfreturn {
+			"location" = cdnLocation,
+			"acl" = aclPermission,
+			"config" = cdnConfig,
+			"uploadPath" = fileUploadPath
+		} />
+	</cffunction>
+
 	<cffunction name="edit" access="public" output="true" returntype="string">
 		<cfargument name="typename" required="true" type="string" hint="The name of the type that this field is part of.">
 		<cfargument name="stObject" required="true" type="struct" hint="The object of the record that this field is part of.">
@@ -25,37 +58,16 @@
 
 		<cfset var html = "">
 		<cfset var item = "">
+		<cfset var locationInfo = resolveLocationConfiguration(arguments.stMetadata) />
+
+		<cfset var utils = new s3.utils() />
+		<cfset var awsSigning = new s3.awsSigning(locationInfo.config.accessKeyID, locationInfo.config.awsSecretKey, utils) />
 
 		<cfimport taglib="/farcry/core/tags/webskin" prefix="skin">
 
 		<cfscript>
-			var cdnLocation = "publicfiles";
-			var cdnPath = "";
-			var aclPermission = "public-read";
-
-			if (len(arguments.stMetadata.ftLocation) and arguments.stMetadata.ftLocation neq "auto") {
-				cdnLocation = arguments.stMetadata.ftLocation;
-			}
-			else if (arguments.stMetadata.ftSecure) {
-				cdnLocation = "privatefiles";
-			}
-			if (arguments.stMetadata.ftSecure) {
-				aclPermission = "private";
-			}
-
-			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
-			cdnConfig.urlExpiry = 1800
-
-			var utils = new s3.utils();
-			var awsSigning = new s3.awsSigning(cdnConfig.accessKeyID, cdnConfig.awsSecretKey, utils);
-
-			var fileUploadPath = "#cdnConfig.pathPrefix##arguments.stMetadata.ftDestination#";
-			if (left(fileUploadPath, 1) == "/") {
-				fileUploadPath = mid(fileUploadPath, 2, len(fileUploadPath)-1);
-			}
-
 			var isoTime = utils.iso8601();
-			var expiry = cdnConfig.urlExpiry;
+			var expiry = locationInfo.config.urlExpiry;
 
 			var params = awsSigning.getAuthorizationParams( "s3", "ap-southeast-2", isoTime );
 			params[ 'X-Amz-SignedHeaders' ] = 'host';
@@ -70,14 +82,14 @@
 					{"x-amz-date": "#params["X-Amz-Date"]#" },
 					{"x-amz-signedheaders": "#params["X-Amz-SignedHeaders"]#" },
 
-					{ "acl": "#aclPermission#" },
-					{ "bucket": "#cdnConfig.bucket#" },
-					[ "starts-with", "$key", "#fileUploadPath#" ],
+					{ "acl": "#locationInfo.acl#" },
+					{ "bucket": "#locationInfo.config.bucket#" },
+					[ "starts-with", "$key", "#locationInfo.uploadPath#" ],
 
 					{ "success_action_status": javaCast("string", "201") },
 					[ "starts-with", "$Content-Type", "" ],
-					[ "starts-with", "$filename", "#fileUploadPath#" ],
-					[ "starts-with", "$name", "#fileUploadPath#" ]
+					[ "starts-with", "$filename", "#locationInfo.uploadPath#" ],
+					[ "starts-with", "$name", "#locationInfo.uploadPath#" ]
 				]
 			};
 			if (arguments.stMetadata.ftMaxSize > 0) {
@@ -89,7 +101,7 @@
 			params[ 'Policy' ] = binaryEncode(charsetDecode(serializedPolicy, "utf-8"), "base64");
 			params[ 'X-Amz-Signature' ] = awsSigning.sign( isoTime.left( 8 ), "ap-southeast-2", "s3", params[ 'Policy' ] );
 
-			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#cdnConfig.bucket#";
+			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#locationInfo.config.bucket#";
 
 			var ftMin = 0;
 			var ftMax = arguments.stMetadata.ftMax;
@@ -210,16 +222,16 @@
 					s3upload($j, plupload, {
 						url : "#bucketEndpoint#",
 						fieldname: "#arguments.fieldname#",
-						uploadpath: "#fileUploadPath#",
-						location: "#cdnLocation#",
+						uploadpath: "#locationInfo.uploadPath#",
+						location: "#locationInfo.location#",
 						destinationpart: "#arguments.stMetadata.ftDestination#",
 						nameconflict: "#arguments.stMetadata.ftNameConflict#",
 						maxfiles: #ftMax#,
 						multipart_params: {
-							"acl" : "#aclPermission#",
-							"key": "#fileUploadPath#/${filename}",
-							"name": "#fileUploadPath#/${filename}",
-							"filename": "#fileUploadPath#/${filename}",
+							"acl" : "#locationInfo.acl#",
+							"key": "#locationInfo.uploadPath#/${filename}",
+							"name": "#locationInfo.uploadPath#/${filename}",
+							"filename": "#locationInfo.uploadPath#/${filename}",
 
 							"success_action_status": "201",
 							"X-Amz-Algorithm": "#params["X-Amz-Algorithm"]#",
@@ -241,7 +253,7 @@
 							"typename": "#arguments.typename#",
 							"objectid": "#arguments.stObject.objectid#",
 							"property": "#arguments.stMetadata.name#"
-							<cfif cdnLocation eq "images">
+							<cfif locationInfo.location eq "images">
 								, "onFileUploaded" : function(file,item) {
 									if (window.$fc !== undefined && window.$fc.imageformtool !== undefined) {
 										$j($fc.imageformtool(
@@ -306,6 +318,7 @@
 		<cfargument name="bRetrieve" type="boolean" required="false" default="true">
 
 		<cfset var stResult = structnew()>
+		<cfset var locationInfo = resolveLocationConfiguration(arguments.stMetadata) />
 		
 		<!--- Throw an error if the field is empty --->
 		<cfif NOT len(arguments.stObject[arguments.stMetadata.name])>
@@ -316,15 +329,7 @@
 			<cfreturn stResult>
 		</cfif>
 
-		<cfif structKeyExists(arguments.stMetadata, "ftLocation") and arguments.stMetadata.ftLocation eq "images">
-			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="images",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-		<cfelseif structKeyExists(arguments.stMetadata, "ftLocation") and len(arguments.stMetadata.ftLocation)>
-			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location=arguments.stMetadata.ftLocation,file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-		<cfelseif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
-			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="privatefiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-		<cfelse>
-			<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location="publicfiles",file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
-		</cfif>
+		<cfset stResult = application.fc.lib.cdn.ioGetFileLocation(location=locationInfo.location,file=arguments.stObject[arguments.stMetadata.name], bRetrieve=arguments.bRetrieve)>
 		
 		<cfreturn stResult>
 	</cffunction>
@@ -339,6 +344,7 @@
 		
 		
 		<cfset var stResult = structnew()>
+		<cfset var locationInfo = resolveLocationConfiguration(arguments.stMetadata) />
 		
 		<!--- Throw an error if the field is empty --->
 		<cfif NOT len(arguments.stObject[arguments.stMetadata.name])>
@@ -347,14 +353,8 @@
 			<cfreturn stResult>
 		</cfif>
 		
-		<cfif isSecured(stObject=arguments.stObject,stMetadata=arguments.stMetadata)>
-			<cfset stResult.correctlocation = "privatefiles">
-			<cfset stResult.currentlocation = application.fc.lib.cdn.ioFindFile(locations="privatefiles,publicfiles",file=arguments.stObject[arguments.stMetadata.name])>
-		<cfelse>
-			<cfset stResult.correctlocation = "publicfiles">
-			<cfset stResult.currentlocation = application.fc.lib.cdn.ioFindFile(locations="publicfiles,privatefiles",file=arguments.stObject[arguments.stMetadata.name])>
-		</cfif>
-		
+		<cfset stResult.correctlocation = locationInfo.location>
+		<cfset stResult.currentlocation = application.fc.lib.cdn.ioFindFile(locations="privatefiles,publicfiles",file=arguments.stObject[arguments.stMetadata.name])>
 		<cfset stResult.correct = stResult.correctlocation eq stResult.currentlocation>
 		
 		<cfreturn stResult>
@@ -365,12 +365,12 @@
 		<cfargument name="stMetadata" type="struct" required="false" hint="Property metadata">
 		
 		<cfset var filepermission = false>
+		<cfset var locationInfo = resolveLocationConfiguration(arguments.stMetadata) />
 		
-		<cfparam name="arguments.stMetadata.ftSecure" default="false">
-		<cfif arguments.stMetadata.ftSecure eq "false">
-			<cfreturn false>
-		<cfelse>
+		<cfif locationInfo.location eq "privatefiles">
 			<cfreturn true>
+		<cfelse>
+			<cfreturn false>
 		</cfif>
 	</cffunction>
 	
