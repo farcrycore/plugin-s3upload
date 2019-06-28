@@ -6,6 +6,7 @@
 	<cfproperty name="ftSecure" default="auto" hint="Store files securely outside of public webspace. If set to 'auto', this value will be derived from the target property.">
 	<cfproperty name="ftLocation" default="auto" hint="Store files in a specific CDN location. If set to 'auto', this value will be derived from the target property." />
 	<cfproperty name="ftFileUploadSuccessCallback" default="" hint="JavaScript function that should be called when a file is successfully uploaded and saved as a record." />
+	<cfproperty name="ftGetSaveDataCallback" default="" hint="JavaScript function that should be called to retrieve object data for the new file." />
 
 
 	<cffunction name="init" output="false">
@@ -368,6 +369,9 @@
 							"allow_edit": "#arguments.stMetadata.ftAllowEdit#",
 							"allow_remove": "#arguments.stMetadata.ftAllowRemove#",
 							"onFileUploaded": function(file,item) {
+								var data = <cfif len(arguments.stMetadata.ftGetSaveDataCallback)>#arguments.stMetadata.ftGetSaveDataCallback#()<cfelse>{}</cfif>;
+								data.filename = file.name;
+								data.property = "#arguments.stMetadata.name#";
 
 								//create a new object for the file
 								$j.ajax({
@@ -375,10 +379,7 @@
 									type: 'POST',
 									cache: false,
 						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#&view=displayAjaxSaveFile',
-									data: {
-										"filename": file.name,
-										"property": "#arguments.stMetadata.name#"
-									},
+									data: data,
 								 	success: function (result) {
 
 							 			//append new objectid to the existing ones
