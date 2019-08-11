@@ -409,7 +409,7 @@ function s3upload($, plupload, options) {
 
 	function getMIMEType(name) {
 		if (/\.jpe?g$/i.test(name)) {
-			return("image/jpg");
+			return("image/jpeg");
 		} else if (/\.png/i.test(name)) {
 			return("image/png");
 		} else if (/\.gif/i.test(name)) {
