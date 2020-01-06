@@ -11,19 +11,19 @@
 
 <!--- find out the target property --->
 <cfset stNewObject = application.fapi.getNewContentObject(typename=url.type,objectid=createUUID()) />
-<cfset stNewObject["label"] = form.filename />
-<cfset stNewObject["title"] = form.filename />
 <cfset stNewObject[targetProperty] = stProps[targetProperty].metadata.ftDestination & '/' & form.filename />
+<cfset stNewObject = beforeSave(stProperties=stNewObject, stFields=application.stCOAPI[url.type].stProps) />
 <cfif rEFindNoCase("\.(jpg|jpeg|png|gif)$", stNewObject[targetProperty]) and structKeyExists(application.formtools.image.oFactory, "uploadToCloudinary")>
 	<cfset stNewObject[targetProperty] = application.formtools.image.oFactory.uploadToCloudinary(stNewObject[targetProperty]) />
 </cfif>
+<cfset application.fapi.setData(stProperties=stNewObject) />
 
-<cfif application.fapi.isLoggedIn()>
-	<cfset username = application.fapi.getCurrentUser().username>
-<cfelse>
-	<cfset username = "anonymous">
-</cfif>
-<cfset stResult = createFromUpload(stProperties=stNewObject, user=username, uploadfield=targetProperty) />
+<!--- Queue asyncronous image processing --->
+<cfset application.fc.lib.tasks.addTask(taskID=stNewObject.objectid, jobID=createUUID(), action="bulkupload.uploadfilecopied", details={
+	objectid = stNewObject.objectid,
+	typename = stObj.name,
+	targetfield = targetProperty
+}) />
 
 <cfset lEditFields = application.fapi.getContentTypeMetadata(typename=stNewObject.typename, md="bulkUploadEditFields", default="") />
 <cfif len(lEditFields)>
@@ -34,4 +34,4 @@
 	<cfset aHead = [] />
 </cfif>
 
-<cfset application.fapi.stream(content={ "objectid"=stResult.objectid, "edit_html"=editHTML, "htmlhead"=aHead }, type="json") />
+<cfset application.fapi.stream(content={ "objectid"=stNewObject.objectid, "edit_html"=editHTML, "htmlhead"=aHead }, type="json") />

@@ -331,6 +331,41 @@
 				</script>
 
 				<script>
+					(function($, maxSimultaneous){
+						var ajaxQueue = [];
+						var ajaxQueueRunning = 0;
+
+						function onQueuedComplete() {
+							ajaxQueueRunning -= 1;
+
+							var settings = ajaxQueue.shift();
+							settings.queue = false;
+							$.ajax(settings);
+						}
+
+						$.ajaxSetup({
+							beforeSend: function(jqXHR, settings){
+								if (settings.queue === undefined) {
+									return true;
+								}
+								if (settings.queue === false) {
+									ajaxQueueRunning = ajaxQueueRunning + 1;
+									return true;
+								}
+
+								settings.complete = onQueuedComplete;
+
+								if (ajaxQueueRunning < maxSimultaneous) {
+									ajaxQueueRunning = ajaxQueueRunning + 1;
+									return true;
+								}
+
+								ajaxQueue.push(settings);
+								return false;
+							}
+						});
+					})($j, 2);
+
 					s3upload($j, plupload, {
 						url : "#bucketEndpoint#",
 						fieldname: "#arguments.fieldname#",
@@ -373,39 +408,42 @@
 								data.filename = file.name;
 								data.property = "#arguments.stMetadata.name#";
 
-								//create a new object for the file
-								$j.ajax({
-									dataType: "json",
-									type: 'POST',
-									cache: false,
-						 			url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#&view=displayAjaxSaveFile',
-									data: data,
-								 	success: function (result) {
+								setTimeout(function(){
+									//create a new object for the file
+									$j.ajax({
+										queue : true,
+										dataType: "json",
+										type: 'POST',
+										cache: false,
+										url: '#application.url.webroot#/index.cfm?ajaxmode=1&type=#listFirst(arguments.stMetadata.ftJoin)#&view=displayAjaxSaveFile',
+										data: data,
+										success: function (result) {
 
-							 			//append new objectid to the existing ones
-										var aObjectIds = $j("###arguments.fieldname#").val().split( "," );
-										aObjectIds.push(result.objectid);
-										$j("###arguments.fieldname#").val(aObjectIds.join(","));
+											//append new objectid to the existing ones
+											var aObjectIds = $j("###arguments.fieldname#").val().split( "," );
+											aObjectIds.push(result.objectid);
+											$j("###arguments.fieldname#").val(aObjectIds.join(","));
 
-										//update html with appropriate attributes to work with sorting
-										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
-										$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
+											//update html with appropriate attributes to work with sorting
+											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("serialize",result.objectid);
+											$j("##join-item-#arguments.stMetadata.name#-" + file.id).attr("id","##join-item-#arguments.stMetadata.name#-"+result.objectid);
 
-										//enable edit button for just added images
-										$j("##editAdded-"+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+result.objectid+"');");
+											//enable edit button for just added images
+											$j("##editAdded-"+file.id).attr("onClick","fcForm.openLibraryEdit('#stObject.typename#','#stObject.objectid#','#arguments.stMetadata.name#','#arguments.fieldname#','"+result.objectid+"');");
 
-										//update list node w<!---  --->ith the new objectid
-										var $listnode = $j("##"+file.id).closest("li.sort");
-										$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
-										$listnode.attr("serialize", result.objectid);
+											//update list node w<!---  --->ith the new objectid
+											var $listnode = $j("##"+file.id).closest("li.sort");
+											$listnode.attr("id", "join-item-#arguments.stMetadata.name#-"+result.objectid);
+											$listnode.attr("serialize", result.objectid);
 
-										<cfif len(arguments.stMetadata.ftFileUploadSuccessCallback)>#arguments.stMetadata.ftFileUploadSuccessCallback#(result);</cfif>
-									},
-									error: function() {
+											<cfif len(arguments.stMetadata.ftFileUploadSuccessCallback)>#arguments.stMetadata.ftFileUploadSuccessCallback#(result);</cfif>
+										},
+										error: function() {
 
-							 			$j('##' + file.id).removeClass("upload-item-complete").addClass("upload-item-error").find(".upload-item-status").text("Error");
-									}
-								});
+											$j('##' + file.id).removeClass("upload-item-complete").addClass("upload-item-error").find(".upload-item-status").text("Error");
+										}
+									});
+								}, 1000);
 							},
 							"getItemTemplate": function(id, name, size, objectid, bEdit, bRemove) {
 
@@ -466,6 +504,7 @@
 								// remove or delete object
 
 								$j.ajax({
+									queue : true,
 									dataType: "json",
 									type: 'POST',
 									cache: false,
