@@ -3,6 +3,8 @@
 	<cfproperty name="aFiles" type="array"
 				ftLabel="New Files"
 				ftType="s3arrayUpload" 
-				ftAllowCreate="false" ftAllowSelect="false" ftAllowEdit="false" ftAllowRemove="false" />
+				ftAllowCreate="false" ftAllowSelect="false" ftAllowEdit="false" ftAllowRemove="false"
+				ftMax="50"
+	/>
 
 </cfcomponent>

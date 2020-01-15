@@ -8,6 +8,7 @@
 	<cfproperty name="ftFileUploadSuccessCallback" default="" hint="JavaScript function that should be called when a file is successfully uploaded and saved as a record." />
 	<cfproperty name="ftGetSaveDataCallback" default="" hint="JavaScript function that should be called to retrieve object data for the new file." />
 
+	<cfproperty name="ftMax" default="50" hint="Maximum number of allowed files to upload.">
 
 	<cffunction name="init" output="false">
 		<cfreturn this>
@@ -30,6 +31,7 @@
 		<cfset var ftDestination = arguments.stMetadata.ftDestination />
 		<cfset var ftMaxSize = arguments.stMetadata.ftMaxSize />
 		<cfset var ftSecure = arguments.stMetadata.ftSecure />
+		<cfset var ftMax = arguments.stMetadata.ftMax />
 
 		<cfif targetPropertyType eq "s3upload">
 			<cfif arguments.stMetadata.ftLocation eq "auto">
@@ -154,7 +156,6 @@
 			var bucketEndpoint = "https://s3" & (cdnConfig.region eq "us-east-1" ? "" : "-" & cdnConfig.region) & ".amazonaws.com/#cdnConfig.bucket#";
 
 			var ftMin = 0;
-			var ftMax = 50;
 			var thumbWidth = 80;
 			var thumbheight = 80;
 			var cropMethod = 'fitinside';
