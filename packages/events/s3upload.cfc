@@ -9,6 +9,7 @@ component displayname="S3 Upload" hint="Bulk upload tasks" output="false" persis
         var thisfield = "";
         var stFP = {};
         var aFields = [];
+        var stFixed = {};
 
         cfsetting(requesttimeout=100000);
 
