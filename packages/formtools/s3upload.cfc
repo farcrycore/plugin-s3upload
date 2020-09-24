@@ -44,7 +44,8 @@
 			"location" = cdnLocation,
 			"acl" = aclPermission,
 			"config" = cdnConfig,
-			"uploadPath" = fileUploadPath
+			"uploadPath" = fileUploadPath,
+			"metadata" = duplicate(arguments.stMetadata)
 		} />
 	</cffunction>
 

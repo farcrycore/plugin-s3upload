@@ -217,15 +217,16 @@
 																	height: "#thumbheight#",
 																	crop:   "#cropMethod#",
 																	format: "#format#"
-																})>
-																<div class="upload-item-image">
-																	<img src="#croppedThumbnail#" />
-																</div>
-														<cfelseif arguments.stMetadata.ftThumbnailImage !=''>
-                                                                                                                       <cfset var thumbLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
-                                                                                                                       <div class="upload-item-image">
-                                                                                                                               <img src="#thumbLocation#" height="80" width="80" />
-                                                                                                                       </div>
+																}
+															)>
+															<div class="upload-item-image">
+																<img src="#croppedThumbnail#" />
+															</div>
+														<cfelseif structKeyExists(arguments.stMetadata, "ftThumbnailImage") and arguments.stMetadata.ftThumbnailImage !=''>
+															<cfset var thumbLocation = application.fapi.getContentType(typename=stItem.typename).getFileLocation(stObject=stItem,stMetadata=application.fapi.getPropertyMetadata(typename=targetType, property=arguments.stMetadata.ftThumbnailImage)).path>
+															<div class="upload-item-image">
+																<img src="#thumbLocation#" height="80" width="80" />
+															</div>
 														<cfelse>
 															<div class="upload-item-nonimage" style="display:block;">
 																<i class='fa fa-file-image-o'></i>
@@ -716,6 +717,58 @@
 		<cfelse>
 			<cfreturn application.fc.lib.cdn.ioCopyFile(source_location=currentlocation,source_file=currentfilename,dest_location="publicfiles",dest_file=newfilename,nameconflict="makeunique",uniqueamong="privatefiles,publicfiles")>
 		</cfif>
+	</cffunction>
+
+	<!--- Resolve "automatic" or implied configuration to actual values --->
+	<cffunction name="resolveLocationConfiguration" access="public" output="true" returntype="struct" hint="Note, this only works for properties that reference an s3upload target property">
+		<cfargument name="stMetadata" required="true" type="struct" hint="This is the metadata that is either setup as part of the type.cfc or overridden when calling ft:object by using the stMetadata argument.">
+
+		<cfset var targetType = arguments.stMetadata.ftJoin />
+		<cfset var targetProperty = getTargetProperty(stMetadata=arguments.stMetadata) />
+		<cfset var targetPropertyType = application.fapi.getPropertyMetadata(typename=targetType, property=targetProperty, md="ftType") />
+
+		<cfif targetPropertyType neq "s3upload">
+			<cfthrow message="Target property #targetType#.#targetProperty# is not an s3upload property" />
+		</cfif>
+
+		<cfset var stResult = application.formtools.s3upload.oFactory.resolveLocationConfiguration(stMetadata=application.stCOAPI[targetType].stProps[targetProperty].metadata) />
+
+		<cfset stResult["metadata"].ftMax = arguments.stMetadata.ftMax />
+
+		<cfif arguments.stMetadata.ftSecure neq "auto">
+			<cfset stResult["metadata"].ftSecure = arguments.stMetadata.ftSecure />
+		</cfif>
+
+		<cfif arguments.stMetadata.ftLocation neq "auto">
+			<cfset stResult["metadata"]["ftLocation"] = arguments.stMetadata.ftLocation />
+			<cfset stResult["location"] = arguments.stMetadata.ftLocation />
+		<cfelseif stResult["metadata"].ftSecure>
+			<cfset stResult["metadata"]["ftLocation"] = "privatefiles" />
+			<cfset cdnLocation = "privatefiles" />
+		</cfif>
+
+		<cfif stResult["metadata"].ftSecure>
+			<cfset stResult["acl"] = "private" />
+		</cfif>
+
+		<cfif arguments.stMetadata.ftAllowedFileExtensions neq "auto">
+			<cfset stResult["metadata"].ftAllowedFileExtensions = arguments.stMetadata.ftAllowedFileExtensions />
+		</cfif>
+
+		<cfif arguments.stMetadata.ftMaxSize neq "auto">
+			<cfset stResult["metadata"].ftMaxSize = arguments.stMetadata.ftMaxSize />
+		</cfif>
+
+		<cfif arguments.stMetadata.ftDestination neq "auto">
+			<cfset stResult["metadata"].ftDestination = arguments.stMetadata.ftDestination />
+		</cfif>
+
+		<cfset stResult["fileUploadPath"] = "#stResult.config.pathPrefix##stResult.metadata.ftDestination#" />
+		<cfif left(stResult["fileUploadPath"], 1) == "/">
+			<cfset stResult["fileUploadPath"] = mid(stResult["fileUploadPath"], 2, len(stResult["fileUploadPath"])-1) />
+		</cfif>
+
+		<cfreturn stResult />
 	</cffunction>
 
 </cfcomponent>
