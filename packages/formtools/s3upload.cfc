@@ -70,7 +70,7 @@
 			var isoTime = utils.iso8601();
 			var expiry = locationInfo.config.urlExpiry;
 
-			var params = awsSigning.getAuthorizationParams( "s3", "ap-southeast-2", isoTime );
+			var params = awsSigning.getAuthorizationParams( "s3", locationInfo.config.region, isoTime );
 			params[ 'X-Amz-SignedHeaders' ] = 'host';
 
 			// create policy and add the encoded policy to the query params
@@ -100,9 +100,9 @@
 			var serializedPolicy = serializeJSON(policy);
 			serializedPolicy = reReplace(serializedPolicy, "[\r\n]+", "", "all");
 			params[ 'Policy' ] = binaryEncode(charsetDecode(serializedPolicy, "utf-8"), "base64");
-			params[ 'X-Amz-Signature' ] = awsSigning.sign( isoTime.left( 8 ), "ap-southeast-2", "s3", params[ 'Policy' ] );
+			params[ 'X-Amz-Signature' ] = awsSigning.sign( isoTime.left( 8 ), locationInfo.config.region, "s3", params[ 'Policy' ] );
 
-			var bucketEndpoint = "https://s3-ap-southeast-2.amazonaws.com/#locationInfo.config.bucket#";
+			var bucketEndpoint = "https://s3-#locationInfo.config.region#.amazonaws.com/#locationInfo.config.bucket#";
 
 			var ftMin = 0;
 			var ftMax = arguments.stMetadata.ftMax;
