@@ -165,6 +165,12 @@
 											<div class="upload-item-image">
 												<img src="#croppedThumbnail#" />
 											</div>
+										<cfelseif listFindNoCase("png,gif,jpg,jpeg", listLast(arguments.stMetadata.value, "."))>
+											<cfset var cdnPath = getFileLocation(stObject=arguments.stObject, stMetadata=arguments.stMetadata).path>
+
+											<div class="upload-item-image">
+												<img src="#cdnPath#" />
+											</div>
 										<cfelse>
 											<div class="upload-item-nonimage" style="display:block;">
 												<i class='fa fa-file-image-o'></i>
