@@ -35,6 +35,12 @@
 		<cfset var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation) />
 		<cfset cdnConfig.urlExpiry = 1800 />
 
+		<!--- Honour the cdn config's setACL flag (Core p740+). Default true for back-compat with older Core. --->
+		<cfset var setACL = true />
+		<cfif structKeyExists(cdnConfig, "setACL")>
+			<cfset setACL = cdnConfig.setACL />
+		</cfif>
+
 		<cfset var fileUploadPath = "#cdnConfig.pathPrefix##arguments.stMetadata.ftDestination#" />
 		<cfif left(fileUploadPath, 1) == "/">
 			<cfset fileUploadPath = mid(fileUploadPath, 2, len(fileUploadPath)-1) />
@@ -43,6 +49,7 @@
 		<cfreturn {
 			"location" = cdnLocation,
 			"acl" = aclPermission,
+			"setACL" = setACL,
 			"config" = cdnConfig,
 			"uploadPath" = fileUploadPath,
 			"metadata" = duplicate(arguments.stMetadata)
@@ -83,7 +90,6 @@
 					{"x-amz-date": "#params["X-Amz-Date"]#" },
 					{"x-amz-signedheaders": "#params["X-Amz-SignedHeaders"]#" },
 
-					{ "acl": "#locationInfo.acl#" },
 					{ "bucket": "#locationInfo.config.bucket#" },
 					[ "starts-with", "$key", "#locationInfo.uploadPath#" ],
 
@@ -93,6 +99,10 @@
 					[ "starts-with", "$name", "#locationInfo.uploadPath#" ]
 				]
 			};
+			// Only include the acl condition when the cdn config has setACL enabled.
+			if (locationInfo.setACL) {
+				arrayAppend(policy.conditions, { "acl": "#locationInfo.acl#" });
+			}
 			if (arguments.stMetadata.ftMaxSize > 0) {
 				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("integer", arguments.stMetadata.ftMaxSize) ])
 			}
@@ -235,7 +245,7 @@
 						nameconflict: "#arguments.stMetadata.ftNameConflict#",
 						maxfiles: #ftMax#,
 						multipart_params: {
-							"acl" : "#locationInfo.acl#",
+							<cfif locationInfo.setACL>"acl" : "#locationInfo.acl#",</cfif>
 							"key": "#locationInfo.uploadPath#/${filename}",
 							"name": "#locationInfo.uploadPath#/${filename}",
 							"filename": "#locationInfo.uploadPath#/${filename}",

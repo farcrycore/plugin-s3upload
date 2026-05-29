@@ -110,6 +110,12 @@
 			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
 			cdnConfig.urlExpiry = 1800;
 
+			// Honour the cdn config's setACL flag (Core p740+). Default true for back-compat with older Core.
+			var setACL = true;
+			if (structKeyExists(cdnConfig, "setACL")) {
+				setACL = cdnConfig.setACL;
+			}
+
 			var utils = new s3.utils();
 			var awsSigning = new s3.awsSigning(cdnConfig.accessKeyID, cdnConfig.awsSecretKey, utils);
 
@@ -134,7 +140,6 @@
 					{"x-amz-date": "#params["X-Amz-Date"]#" },
 					{"x-amz-signedheaders": "#params["X-Amz-SignedHeaders"]#" },
 
-					{ "acl": "#aclPermission#" },
 					{ "bucket": "#cdnConfig.bucket#" },
 					[ "starts-with", "$key", "#fileUploadPath#" ],
 
@@ -144,6 +149,10 @@
 					[ "starts-with", "$name", "#fileUploadPath#" ]
 				]
 			};
+			// Only include the acl condition when the cdn config has setACL enabled.
+			if (setACL) {
+				arrayAppend(policy.conditions, { "acl": "#aclPermission#" });
+			}
 			if (ftMaxSize > 0) {
 				arrayAppend(policy.conditions, [ "content-length-range", 0, javaCast("int", ftMaxSize) ]);
 			}
@@ -376,7 +385,7 @@
 						destinationpart: "#ftDestination#",
 						maxfiles: #ftMax#,
 						multipart_params: {
-							"acl" : "#aclPermission#",
+							<cfif setACL>"acl" : "#aclPermission#",</cfif>
 							"key": "#fileUploadPath#/${filename}",
 							"name": "#fileUploadPath#/${filename}",
 							"filename": "#fileUploadPath#/${filename}",
