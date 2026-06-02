@@ -350,6 +350,9 @@
 							ajaxQueueRunning -= 1;
 
 							var settings = ajaxQueue.shift();
+							if (!settings) {
+								return;
+							}
 							settings.queue = false;
 							$.ajax(settings);
 						}
