@@ -107,7 +107,7 @@
 				aclPermission = "private";
 			}
 
-			var cdnConfig = application.fc.lib.cdn.getLocation(cdnLocation);
+			var cdnConfig = duplicate(application.fc.lib.cdn.getLocation(cdnLocation));
 			cdnConfig.urlExpiry = 1800;
 
 			// Honour the cdn config's setACL flag (Core p740+). Default true for back-compat with older Core.
